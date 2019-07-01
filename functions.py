@@ -53,20 +53,15 @@ class QLF():
         self.z = float(z)
         self.a = 1.0/(1.0+self.z)
         self.bin_num = bin_num
+        self.get_zparams()
+        self.fp = np.linspace(5,11,self.bin_num)
+        self.xp = self.get_Mstar(self.fp)
         
         self.LumBins = np.linspace(Lum[0], Lum[1], bin_num)
         if self.z < 4:
             self.StellBins = np.linspace(Stell[0], Stell[1], bin_num)
-        else:
-            self.StellBins = np.linspace(Stell[0], 11.2, bin_num)
-            
-            
-        ##stuff to be redefined later
-        self.zparams = None
-        self.early = None
-        self.growth = None
-        self.late = None
-        self.m = None
+        else: 
+            self.StellBins = np.linspace(Stell[0], 11., bin_num)
         
         
     def get_zparams(self):
