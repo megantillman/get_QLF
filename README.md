@@ -2,4 +2,11 @@
 Northwestern CIERA QLF project
 
 obs_collect.dat: collection of observational data points collected in Hopkins et al. 2006.
+
 smhm_params.txt: originally smhm_true_med_params.txt holds information to be used in converting from halo mass to stellar and vice versa.
+
+functions.py: holds the functions and class needed to constuct your qlf.
+
+ssfrs: folder containing all the ssfr files needed for calculations in constructing your qlf.
+
+get_QLF_notebook.ipynb: contains my messings with the qlf function
