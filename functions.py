@@ -13,7 +13,7 @@ a_list = np.array([float(a) for a in files])
 mass_list = np.array([np.loadtxt("ssfrs/ssfr_a"+f+".dat")[:,0] for f in files])
 ssfr_list = [np.loadtxt("ssfrs/ssfr_a"+f+".dat")[:,1] for f in files]
     
-param_file = np.loadtxt("smhm_true_med_params.txt")
+param_file = np.loadtxt("smhm_params.txt")
 names = "EFF_0 EFF_0_A EFF_0_A2 EFF_0_Z M_1 M_1_A M_1_A2 M_1_Z ALPHA ALPHA_A ALPHA_A2 ALPHA_Z BETA BETA_A BETA_Z DELTA GAMMA GAMMA_A GAMMA_Z CHI2".split(" ");
 params = dict(zip(names, param_file[:,1]))
 
@@ -29,7 +29,7 @@ def create_ranges_numexpr(start, stop, N):
 def grab_obs(redshift):
     
     obs_points = []
-    with open("Hopkins2006obs_collect.dat", 'r') as f:
+    with open("obs_collect.dat", 'r') as f:
         for line in f:
             if line[0:4] != ';;//':
                 obs_points.append(line.split())
