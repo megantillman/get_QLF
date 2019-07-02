@@ -47,21 +47,29 @@ def grab_obs(redshift):
 
 
 class QLF():
-    def __init__(self, z, bin_num, Lum, Stell):
+    def __init__(self, z, bin_num):
         
         
         self.z = float(z)
         self.a = 1.0/(1.0+self.z)
         self.bin_num = bin_num
         self.get_zparams()
-        self.fp = np.linspace(5,11,self.bin_num)
+        
+        self.max_halo = 15.
+        self.HaloBins = np.linspace(7., self.max_halo, bin_num)
+        slopes = self.get_slope(self.HaloBins)
+        while slopes[-1] < 0:
+            self.max_halo -= .1
+            self.HaloBins = np.linspace(7., self.max_halo, bin_num)
+            slopes = self.get_slope(self.HaloBins)
+            
+        self.max_stell = self.get_Mstar(self.max_halo)
+        
+        self.fp = self.HaloBins
         self.xp = self.get_Mstar(self.fp)
         
-        self.LumBins = np.linspace(Lum[0], Lum[1], bin_num)
-        if self.z < 4:
-            self.StellBins = np.linspace(Stell[0], Stell[1], bin_num)
-        else: 
-            self.StellBins = np.linspace(Stell[0], 11., bin_num)
+        self.LumBins = np.linspace(5., 16., bin_num)
+        self.StellBins = np.linspace(5.,self.max_stell, bin_num)
         
         
     def get_zparams(self):
@@ -75,8 +83,6 @@ class QLF():
         self.zparams['delta'] = params['DELTA']
         self.zparams['gamma'] = 10**(params['GAMMA'] + a1*params['GAMMA_A'] + self.z*params['GAMMA_Z'])
         
-        self.fp = np.linspace(0,20,1000)
-        self.xp = self.get_Mstar(self.fp)
     
     def get_slope(self, Mhalo):
 
@@ -137,7 +143,7 @@ class QLF():
         mins = halomasses - plus_mins
         maxs = halomasses + plus_mins
         mins[mins < 7.] = 7.
-        maxs[maxs > 15.] = 15.
+        maxs[maxs > self.max_halo] = self.max_halo
         MHalo = create_ranges_numexpr(mins, maxs, bin_num)
         dNdMhalo = mf.massFunction(10.**MHalo, z, q_in='M', q_out='dndlnM', mdef='vir', model='despali16') * np.log(10)
         meanMstar = np.apply_along_axis(self.get_Mstar, 1, MHalo)
