@@ -230,9 +230,9 @@ class QLF():
         p0[self.growth] = prob_zero[1]
         p0[self.late] = prob_zero[2]
 
-        leftc = np.argmin(qlf.early)
-        rightc = np.argmax(qlf.late)
-        per = len(qlf.growth[qlf.growth==True])*.1
+        leftc = np.argmin(self.early)
+        rightc = np.argmax(self.late)
+        per = len(self.growth[self.growth==True])*.1
         cut1l = int(leftc - per)
         cut1r = int(leftc + per + 1)
         cut2l = int(rightc - per)
