@@ -230,10 +230,20 @@ class QLF():
         p0[self.growth] = prob_zero[1]
         p0[self.late] = prob_zero[2]
 
+        leftc = np.argmin(qlf.early)
+        rightc = np.argmax(qlf.late)
+        per = len(qlf.growth[qlf.growth==True])*.1
+        cut1l = int(leftc - per)
+        cut1r = int(leftc + per + 1)
+        cut2l = int(rightc - per)
+        cut2r = int(rightc + per + 1)
+        
         s = np.zeros(self.bin_num)
         s[self.early] = standev[0]
         s[self.growth] = standev[1]
         s[self.late] = standev[2]
+        s[cut1l:cut1r] = np.linspace(standev[0], standev[1], len(s[cut1l:cut1r]))
+        s[cut2l:cut2r] = np.linspace(standev[1], standev[2], len(s[cut2l:cut2r]))
 
         BHBins = self.StellBins * self.m + b
         eta_lists = np.apply_along_axis(self.etas, 1, np.reshape(BHBins,(self.bin_num,1)))
