@@ -220,6 +220,12 @@ class QLF():
         return probdens
     
     def get_dNdL(self, prob_zero, standev, obscured):
+        
+        ###exp sig growth
+        standev = [.95, self.slope_list[1]/14 + .3, .35]
+        if standev[1] > standev[0]:
+            standev[1] = standev[0]
+            
         b = np.zeros(self.bin_num)
         b[self.early] = self.int_list[0]
         b[self.growth] = self.int_list[1]
