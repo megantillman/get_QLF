@@ -4,7 +4,6 @@ cosmology.setCosmology('planck15')
 from colossus.lss import mass_function as mf 
 import glob
 import numexpr as ne
-import sys
 from scipy.optimize import newton
 
 
@@ -56,15 +55,16 @@ class QLF():
         self.get_zparams()
         
         self.max_halo = 15.
-        self.HaloBins = np.linspace(7., self.max_halo, bin_num)
+        self.min_halo = 7.
+        self.HaloBins = np.linspace(self.min_halo, self.max_halo, bin_num)
         slopes = self.get_slope(self.HaloBins)
         while slopes[-1] < 0:
             self.max_halo -= .1
-            self.HaloBins = np.linspace(7., self.max_halo, bin_num)
+            self.HaloBins = np.linspace(self.min_halo, self.max_halo, bin_num)
             slopes = self.get_slope(self.HaloBins)
             
         self.max_stell = self.get_Mstar(self.max_halo)
-        
+
         self.fp = self.HaloBins
         self.xp = self.get_Mstar(self.fp)
         
@@ -72,7 +72,7 @@ class QLF():
         self.StellBins = np.linspace(5.,self.max_stell, bin_num)
         
         
-    def get_zparams(self):
+    def get_zparams(self): ##converting this to ln????
         a1 = self.a - 1.0
         lna = np.log(self.a)
         self.zparams = {}
@@ -83,8 +83,10 @@ class QLF():
         self.zparams['delta'] = params['DELTA']
         self.zparams['gamma'] = 10**(params['GAMMA'] + a1*params['GAMMA_A'] + self.z*params['GAMMA_Z'])
         
+        
+        
     
-    def get_slope(self, Mhalo):
+    def get_slope(self, Mhalo): #returns dlogMstar/dlogMhalo slope is same in log10 and ln space
 
         dm = Mhalo-self.zparams['m_1'];
         term1 = (self.zparams['alpha']*10.**(self.zparams['beta']*dm)+self.zparams['beta']*10.**(self.zparams['alpha']*dm))/(10.**(self.zparams['beta']*dm) + 10.**(self.zparams['alpha']*dm))
@@ -109,7 +111,7 @@ class QLF():
         return Mhalo
     
     
-    def get_SMBM(self, dM, Mmid, slope1 = 0.2, slope3 = 1.):
+    def get_SMBM(self, dM, Mmid = 10.3, slope1 = 0.2, slope3 = 1.):
 
         start = [7., np.log10(1.4*10**4.)]
         stop = [12., np.log10(1.4*10**9.)]
@@ -127,6 +129,13 @@ class QLF():
         int2 = mbh2 - mstar2 * slope2
 
         self.slope_list, self.int_list, self.mass_cuts = [slope1, slope2, slope3], [int1, int2, int3], [mstar1, mstar2] 
+        self.early = (self.StellBins <= self.mass_cuts[0])
+        self.growth = ((self.StellBins > self.mass_cuts[0]) & (self.StellBins < self.mass_cuts[1]))
+        self.late = (self.StellBins > self.mass_cuts[1])
+        self.m = np.zeros(len(self.StellBins))
+        self.m[self.early] = self.slope_list[0]
+        self.m[self.growth] = self.slope_list[1]
+        self.m[self.late] = self.slope_list[2]
     
     
     def gauss_array(self, vals, std, amp):
@@ -136,134 +145,100 @@ class QLF():
         return y
 
     
-    def convolve_smhm(self, StellBins, sigma, bin_num, z): 
+    def convolve_smhm(self, StellBins, sig_lnMstar, bin_num, z): 
+        lnten = np.log(10)
+        logMh = self.get_Mhalo(np.asarray(StellBins))
+        plus_mins = (5.0 * sig_lnMstar) / self.get_slope(np.asarray(logMh)) ##is this the right sigma?
+        mins = logMh * lnten - plus_mins
+        maxs = logMh * lnten + plus_mins
+        maxMh, minMh = self.min_halo * lnten, self.max_halo * lnten
+        mins[mins < maxMh] = maxMh
+        maxs[maxs > minMh] = minMh
+        lnMh = create_ranges_numexpr(mins, maxs, bin_num)
+        dNdlnMhalo = mf.massFunction(np.e**lnMh, z, q_in='M', q_out='dndlnM', mdef='vir', model='despali16')
+        logMstar = np.apply_along_axis(self.get_Mstar, 1, lnMh/lnten)
+        vals = np.zeros((bin_num,bin_num+1))
+        vals[:,-1] = StellBins * lnten
+        vals[:,:-1] = logMstar * lnten
+        Mstar_prob = np.apply_along_axis(self.gauss_array, 1, vals, sig_lnMstar, 1)
+        dNdlnMstar = np.sum(Mstar_prob * dNdlnMhalo, axis = 1) * (lnMh[:,1] - lnMh[:,0])
 
-        halomasses = self.get_Mhalo(np.asarray(StellBins))
-        plus_mins = (5.0 * sigma) / self.get_slope(np.asarray(halomasses))
-        mins = halomasses - plus_mins
-        maxs = halomasses + plus_mins
-        mins[mins < 7.] = 7.
-        maxs[maxs > self.max_halo] = self.max_halo
-        MHalo = create_ranges_numexpr(mins, maxs, bin_num)
-        dNdMhalo = mf.massFunction(10.**MHalo, z, q_in='M', q_out='dndlnM', mdef='vir', model='despali16') * np.log(10)
-        meanMstar = np.apply_along_axis(self.get_Mstar, 1, MHalo)
-        values = np.zeros((bin_num,bin_num+1))
-        values[:,-1] = StellBins
-        values[:,:-1] = meanMstar
-        Mstar_prob = np.apply_along_axis(self.gauss_array, 1, values, sigma, 1)
-        dNdMstar = np.sum(Mstar_prob * dNdMhalo, axis = 1) * (MHalo[:,1] - MHalo[:,0])
-
-        return dNdMstar
+        return dNdlnMstar
     
     
     
-    def get_dNdMstar(self, smhm_scat):
+    def get_dNdlnMstar(self, sig_lnMstar):
         
-        if smhm_scat == 0.:
-            self.dNdMstar = mf.massFunction(10.**self.get_Mhalo(self.StellBins), self.z, q_in='M', q_out='dndlnM', mdef='vir', model='despali16')  / (get_slope(um.get_Mhalo(self.StellBins, self.z)) * np.log10(np.e))
+        if sig_lnMstar == 0.:
+            self.dNdlnMstar = mf.massFunction(10.**self.get_Mhalo(self.StellBins), self.z, q_in='M', q_out='dndlnM', mdef='vir', model='despali16')
         else:
-            self.dNdMstar = self.convolve_smhm(self.StellBins, smhm_scat, self.bin_num, self.z)
+            self.dNdlnMstar = self.convolve_smhm(self.StellBins, sig_lnMstar, self.bin_num, self.z)
 
 
-            
-    def get_dNdMbh(self):
         
-        self.early = (self.StellBins <= self.mass_cuts[0])
-        self.growth = ((self.StellBins > self.mass_cuts[0]) & (self.StellBins < self.mass_cuts[1]))
-        self.late = (self.StellBins > self.mass_cuts[1])
-        self.m = np.zeros(len(self.StellBins))
-        self.m[self.early] = self.slope_list[0]
-        self.m[self.growth] = self.slope_list[1]
-        self.m[self.late] = self.slope_list[2]
-        self.dNdMbh = self.dNdMstar / self.m
-        
-        
-    def etas(self, Mbh):
     
-        n = np.asarray(self.LumBins) - np.log10(3.3e4) - Mbh
+    def get_Mdotbh(self, vals, lnxsigs, files = files):
 
-        return n
+        Mstar = vals[0]
+        slope = vals[1]
+        inter = vals[2]
+        a = self.a
+        Mbh = 10**(Mstar*slope+inter)
         
-        
-        
-            
-    def get_mean_etas(self, vals, a, files = files):
-
-        Mbh = vals[0]
-        Mstar = vals[1]
-        slope = vals[2]
-  
+        if slope == self.slope_list[0]:
+            lnxsig = lnxsigs[0]
+        else:
+            lnxsig = lnxsigs[1]
         closest_a = np.argmin(np.abs(a_list - a))
         closest_m = np.argmin(np.abs(mass_list[closest_a] - Mstar))
         ssfr = ssfr_list[closest_a][closest_m]
 
-        Ledd = 1.3*10**31 * 10**Mbh #J/s 
-        Mdotedd = Ledd / (.1 * (2.99*10**8)**2) #kg/s???
-        sbhr = slope*(ssfr/(3.154*10**7)) #1/s??
-        eta = sbhr*(10**Mbh*2*10**30/Mdotedd)
-
-        return np.log10(eta)
+        Ledd = 1.3e38 * Mbh #ergs/s 
+        #Mdotedd = Ledd / (.1 * (2.99e10)**2) #g/s
+        sbhr = slope * (ssfr / 3.154e7) #1/s
+        Mdotbh = sbhr * (Mbh * 2e33) #g/s
+        
+        
+        mu_lnX = -0.5 * lnxsig**2
+        mu_lnMdotbh = mu_lnX + np.log(Mdotbh) 
+        
+        lnMdotsig = lnxsig
+        
+        return mu_lnMdotbh, lnMdotsig
     
-    def gauss(self, x, *var):
+    def gauss_mdot(self, vals):
   
-        mean, std, amp = var
-        y = (amp/np.sqrt(2.0*np.pi*std**2.0))*np.exp((-(x-mean)**2.0)/(2.0*std**2))
+        x = self.lnMdotbh_list
+        mu = vals[0]
+        sig = vals[1]
+        A = 1
+        y = ( A/np.sqrt(2.0 * np.pi * sig**2.0) ) * np.exp( -(x - mu)**2.0 / (2.0 * sig**2) )
 
         return y
     
-    
-    def prob_eddratios(self, vals, obscured):
-
-        amp = 1 - vals[-1] - (obscured * (1 - vals[-1]))
-        probdens = self.gauss(vals[:-3], vals[-3]-(vals[-2]**2)/2, vals[-2], amp)
-
-        return probdens
-    
-    def get_dNdL(self, prob_zero, standev, obscured):
+    def get_dNdlnL(self, lnxsigs, obscured):
         
-        ###exp sig growth
-        standev = [.95, self.slope_list[1]/14 + .3, .35]
-        if standev[1] > standev[0]:
-            standev[1] = standev[0]
-            
         b = np.zeros(self.bin_num)
         b[self.early] = self.int_list[0]
         b[self.growth] = self.int_list[1]
         b[self.late] = self.int_list[2]
-
-        p0 = np.zeros(self.bin_num)
-        p0[self.early] = prob_zero[0]
-        p0[self.growth] = prob_zero[1]
-        p0[self.late] = prob_zero[2]
-
-        leftc = np.argmin(self.early)
-        rightc = np.argmax(self.late)
-        per = len(self.growth[self.growth==True])*.1
-        cut1l = int(leftc - per)
-        cut1r = int(leftc + per + 1)
-        cut2l = int(rightc - per)
-        cut2r = int(rightc + per + 1)
+        vals = np.zeros((self.bin_num, 3))
+        vals[:,0] = self.StellBins
+        vals[:,1] = self.m
+        vals[:,2] = b
+        lnMdot_mu_msig = np.apply_along_axis(self.get_Mdotbh, 1, vals, lnxsigs)
         
-        s = np.zeros(self.bin_num)
-        s[self.early] = standev[0]
-        s[self.growth] = standev[1]
-        s[self.late] = standev[2]
-        s[cut1l:cut1r] = np.linspace(standev[0], standev[1], len(s[cut1l:cut1r]))
-        s[cut2l:cut2r] = np.linspace(standev[1], standev[2], len(s[cut2l:cut2r]))
-
-        BHBins = self.StellBins * self.m + b
-        eta_lists = np.apply_along_axis(self.etas, 1, np.reshape(BHBins,(self.bin_num,1)))
-
-        vals = np.zeros((self.bin_num,3))
-        vals[:,0] = BHBins
-        vals[:,1] = self.StellBins
-        vals[:,2] = self.m
-        mean_etas = np.apply_along_axis(self.get_mean_etas, 1, vals, self.a)
-
-        vals = np.zeros((self.bin_num, self.bin_num+3))
-        vals[:,:-3] = eta_lists
-        vals[:,-3] = mean_etas
-        vals[:,-2] = s
-        vals[:,-1] = p0
+        self.lnMdotbh_list = (self.LumBins + np.log10(3.9e33)) * np.log(10) - np.log(0.1*2.99e10**2)
+        vals = np.zeros((self.bin_num, 2))
+        vals[:,0] = lnMdot_mu_msig[:,0]
+        vals[:,1] = lnMdot_mu_msig[:,1]
+            
+        intval = np.apply_along_axis(self.gauss_mdot, 1, vals) * (np.reshape(self.dNdlnMstar,(self.bin_num,1))) * (self.StellBins[1] - self.StellBins[0])
+        self.dNdlnL = (1-obscured) * (np.sum(intval, axis = 0))
+        ind_dNdlnL_off = (1-obscured) * intval
         
-        self.dNdL = np.log10(np.sum(np.apply_along_axis(self.prob_eddratios, 1, vals, obscured) * np.reshape(self.dNdMbh,(self.bin_num,1)) * (self.StellBins[1] - self.StellBins[0]) * np.reshape(self.m,(self.bin_num,1)), axis = 0))
+        self.ind_dNdlnL = np.zeros((self.bin_num,self.bin_num))
+        c = 0
+        for l in ind_dNdlnL_off:
+            self.ind_dNdlnL[c,:] = l
+            c += 1
