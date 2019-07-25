@@ -216,7 +216,7 @@ class QLF():
 
         return y
     
-    def get_dNdlnL(self, lnxsigs, obscured):
+    def get_dNdlnL(self, lnxsigs):
         
         b = np.zeros(self.bin_num)
         b[self.early] = self.int_list[0]
@@ -232,10 +232,16 @@ class QLF():
         vals = np.zeros((self.bin_num, 2))
         vals[:,0] = lnMdot_mu_msig[:,0]
         vals[:,1] = lnMdot_mu_msig[:,1]
-            
+        
+        Rl = 0.8
+        Rh = 0.2
+        Lc = 43.7
+        Lx = np.log10(0.037*10**(self.LumBins + np.log10(3.9e33)))
+        FOb = Rl * np.e**(-Lx/Lc) + Rh * (1 - np.e**(-Lx/Lc))
+        
         intval = np.apply_along_axis(self.gauss_mdot, 1, vals) * (np.reshape(self.dNdlnMstar,(self.bin_num,1))) * (self.StellBins[1] - self.StellBins[0])
-        self.dNdlnL = (1-obscured) * (np.sum(intval, axis = 0))
-        ind_dNdlnL_off = (1-obscured) * intval
+        self.dNdlnL = (1-FOb) * (np.sum(intval, axis = 0))
+        ind_dNdlnL_off = (1-FOb) * intval
         
         self.ind_dNdlnL = np.zeros((self.bin_num,self.bin_num))
         c = 0
