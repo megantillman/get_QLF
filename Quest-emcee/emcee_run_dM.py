@@ -5,14 +5,14 @@ import timeit
 
 bin_num = 100
 sig_lnMstar = 0.7
-ndim, nwalkers, steps = 1, 200, 10000
-threads = 10
+ndim, nwalkers, steps, runs = 1, 200, 1000, 10
+threads = 12
 
 
 #### Defining functions that I need to find my optimal initial guess for emcee.
-def get_QLF_mcmc(dM, i, obscured = 0.5, sig_lnMstar = 0.7, sig_lnX = [3.5,2.2]):
+def get_QLF_mcmc(dM, i, sig_lnMstar = 0.7, sig_lnX = [3.5,2.2]):
     i.get_SMBM(dM)
-    i.get_dNdlnL(sig_lnX, obscured)
+    i.get_dNdlnL(sig_lnX)
     return i.LumBins, np.log10(i.dNdlnL * np.log(10))
 
 def model_func_op(x, p, i):
@@ -46,7 +46,7 @@ def model_func(x, p, z):
     z = np.array(z)
     for zs, i in zip(zlist, qlf_list):
         i.get_SMBM(p)
-        i.get_dNdlnL(lnxsigs = [3.5,2.2], obscured = 0.5)
+        i.get_dNdlnL(lnxsigs = [3.5,2.2])
         xm, ym = i.LumBins, np.log10(i.dNdlnL * np.log(10))
         where = (z == zs)  
         y.extend(np.interp(np.array(x)[where], xm, ym))
@@ -97,32 +97,49 @@ for z in zlist:
 p = 1.5
 nll = lambda *args: -lnchi2_op(*args)
 results = []
-bond = ((0.01, 3.0))
+bond = ((0.01, 3.0),)
 
 for i, z in zip(qlf_list, zlist):
     xt, yt, yerr = np.array(grab_obs(z))
-    results.append(op.minimize(nll, p, args=(i, xt, yt, yerr), method = 'L-BFGS-B', bounds = ((0.0,3.0),))["x"])
+    results.append(op.minimize(nll, p, args=(i, xt, yt, yerr), method = 'L-BFGS-B', bounds = bond)["x"])
 
 pinit = np.sum(results)/len(results)
 
 
-#### Setting up my emcee walkers and running them.
+#### Setting up my emcee ensemble sampler.
 sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, threads = threads, args=(np.array(z_tot), np.array(xt_tot), np.array(yt_tot), np.array(yerr_tot)))
 
+
+#### Loops over runs and writting out to file each loop.
+
 pos = [pinit + .3*np.random.randn(ndim) for i in range(nwalkers)]
+pos = np.array(pos)
+pos[(pos <= 0.0)] = 0.01
 
-start = timeit.default_timer()
-sampler.run_mcmc(pos, steps)
-stop = timeit.default_timer()
-
-
-#### Writting the chain data to a file that I can mess with.
-f = open("output/dM-chain-v1.0_n"+str(nwalkers)+"_s"+str(steps)+".dat","w")
+f = open("output/dM-chain-v1.0_n"+str(nwalkers)+"_s"+str(steps)+"_t"+str(threads)+".dat","w")
 f.write('###  dM  \n')
-f.write('###  nwalkers = '+str(nwalkers)+'   steps = '+str(steps)+'   time to run = '+str(stop - start)+'\n')
-f.write('###  **each walker is seperated by three pound signs** \n')
-for i in sampler.chain:
-    for j in i:
-        f.write(str(j[0])+'\n')
-    f.write('### \n')
+f.write('###  nwalkers = '+str(nwalkers)+'   steps/run = '+str(steps)+'    threads = '+str(threads)+'\n')
+f.close()
+
+index = 0
+tot_time = 0
+for n in range(1,runs+1):
+    
+    start = timeit.default_timer()
+    sampler.run_mcmc(pos, steps)
+    stop = timeit.default_timer()
+    
+    f = open("output/dM-chain-v1.0_n"+str(nwalkers)+"_s"+str(steps)+"_t"+str(threads)+".dat","a")      
+    for i in range(index, index+steps):
+        for j in sampler.chain[:,i,0]:
+            f.write(str(j)+'    ')
+        f.write('\n')
+    tot_time += float(stop - start)
+    f.write('######### run: '+str(n)+'    time/run: '+str(stop - start)+'    total time: '+str(tot_time)+'\n')
+    f.close()
+    pos = sampler.chain[:,-1,:]
+    index += steps
+    
+f = open("output/dM-chain-v1.0_n"+str(nwalkers)+"_s"+str(steps)+"_t"+str(threads)+".dat","a")
+f.write('#### run attempts completed')
 f.close()
