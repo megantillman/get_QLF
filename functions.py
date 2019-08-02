@@ -235,8 +235,8 @@ class QLF():
         
         Rl = 0.8
         Rh = 0.2
-        Lc = 43.7
-        Lx = np.log10(0.037*10**(self.LumBins + np.log10(3.9e33)))
+        Lc = 10**43.7
+        Lx = 0.037*10**(self.LumBins + np.log10(3.9e33))
         self.FOb = Rl * np.e**(-Lx/Lc) + Rh * (1 - np.e**(-Lx/Lc))
         
         intval = np.apply_along_axis(self.gauss_mdot, 1, vals) * (np.reshape(self.dNdlnMstar,(self.bin_num,1))) * (self.StellBins[1] - self.StellBins[0])
