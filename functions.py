@@ -177,24 +177,21 @@ class QLF():
 
         
     
-    def get_Mdotbh(self, vals, lnxsigs, files = files):
+    def get_Mdotbh(self, vals, files = files):
 
         Mstar = vals[0]
         slope = vals[1]
         inter = vals[2]
+        lnxsig = vals[3]
         a = self.a
         Mbh = 10**(Mstar*slope+inter)
         
-        if slope == self.slope_list[0]:
-            lnxsig = lnxsigs[0]
-        else:
-            lnxsig = lnxsigs[1]
         closest_a = np.argmin(np.abs(a_list - a))
         closest_m = np.argmin(np.abs(mass_list[closest_a] - Mstar))
         ssfr = ssfr_list[closest_a][closest_m]
 
         Ledd = 1.3e38 * Mbh #ergs/s 
-        #Mdotedd = Ledd / (.1 * (2.99e10)**2) #g/s
+        Mdotedd = Ledd / (.1 * (2.99e10)**2) #g/s
         sbhr = slope * (ssfr / 3.154e7) #1/s
         Mdotbh = sbhr * (Mbh * 2e33) #g/s
         
@@ -204,7 +201,7 @@ class QLF():
         
         lnMdotsig = lnxsig
         
-        return mu_lnMdotbh, lnMdotsig
+        return mu_lnMdotbh, lnMdotsig, np.log(Mdotedd)
     
     def gauss_mdot(self, vals):
   
@@ -222,11 +219,22 @@ class QLF():
         b[self.early] = self.int_list[0]
         b[self.growth] = self.int_list[1]
         b[self.late] = self.int_list[2]
-        vals = np.zeros((self.bin_num, 3))
+        
+        lnxsig_list = np.zeros(self.bin_num)
+        lnxsig_list[self.early] = lnxsigs[0]
+        lnxsig_list[self.growth] = lnxsigs[1]
+        lnxsig_list[self.late] = lnxsigs[1]
+        tenper = int(self.bin_num * 0.1)
+        tranpoint = np.argmin(self.early)
+        lintrans = np.linspace(6, 3, tenper * 2, endpoint = False)
+        lnxsig_list[tranpoint - tenper : tranpoint + tenper] = lintrans
+        
+        vals = np.zeros((self.bin_num, 4))
         vals[:,0] = self.StellBins
         vals[:,1] = self.m
         vals[:,2] = b
-        lnMdot_mu_msig = np.apply_along_axis(self.get_Mdotbh, 1, vals, lnxsigs)
+        vals[:,3] = lnxsig_list
+        lnMdot_mu_msig = np.apply_along_axis(self.get_Mdotbh, 1, vals)
         
         self.lnMdotbh_list = (self.LumBins + np.log10(3.9e33)) * np.log(10) - np.log(0.1*2.99e10**2)
         vals = np.zeros((self.bin_num, 2))
@@ -238,6 +246,13 @@ class QLF():
         Lc = 10**43.7
         Lx = 0.037*10**(self.LumBins + np.log10(3.9e33))
         self.FOb = Rl * np.e**(-Lx/Lc) + Rh * (1 - np.e**(-Lx/Lc))
+        
+        
+        #######
+        
+        self.Mdot_sig = lnMdot_mu_msig
+        
+        #######
         
         intval = np.apply_along_axis(self.gauss_mdot, 1, vals) * (np.reshape(self.dNdlnMstar,(self.bin_num,1))) * (self.StellBins[1] - self.StellBins[0])
         self.dNdlnL = (1-self.FOb) * (np.sum(intval, axis = 0))
