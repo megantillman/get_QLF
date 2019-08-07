@@ -28,7 +28,7 @@ def create_ranges_numexpr(start, stop, N):
 def grab_obs(redshift):
     
     obs_points = []
-    with open("obs_collect.dat", 'r') as f:
+    with open("obs_collect.txt", 'r') as f:
         for line in f:
             if line[0:4] != ';;//':
                 obs_points.append(line.split())
