@@ -68,8 +68,7 @@ class QLF():
         self.fp = self.HaloBins
         self.xp = self.get_Mstar(self.fp)
         
-        self.LumBins = np.linspace(5., 16., bin_num)
-        self.StellBins = np.linspace(5.,self.max_stell, bin_num)
+        self.StellBins = np.linspace(8.0, self.max_stell, bin_num)
         
         
     def get_zparams(self): ##converting this to ln????
@@ -128,14 +127,21 @@ class QLF():
         slope2 = (mbh2 - mbh1) / (mstar2 - mstar1)
         int2 = mbh2 - mstar2 * slope2
 
-        self.slope_list, self.int_list, self.mass_cuts = [slope1, slope2, slope3], [int1, int2, int3], [mstar1, mstar2] 
+        self.slope_list, self.int_list, self.mass_cuts = [slope1, slope2, slope3], [int1, int2, int3], [mstar1, mstar2]
+        
         self.early = (self.StellBins <= self.mass_cuts[0])
         self.growth = ((self.StellBins > self.mass_cuts[0]) & (self.StellBins < self.mass_cuts[1]))
         self.late = (self.StellBins > self.mass_cuts[1])
-        self.m = np.zeros(len(self.StellBins))
+        
+        self.m = np.zeros(self.bin_num)
         self.m[self.early] = self.slope_list[0]
         self.m[self.growth] = self.slope_list[1]
         self.m[self.late] = self.slope_list[2]
+        
+        self.b = np.zeros(self.bin_num)
+        self.b[self.early] = self.int_list[0]
+        self.b[self.growth] = self.int_list[1]
+        self.b[self.late] = self.int_list[2]
     
     
     def gauss_array(self, vals, std, amp):
@@ -145,7 +151,7 @@ class QLF():
         return y
 
     
-    def convolve_smhm(self, StellBins, sig_lnMstar, bin_num, z): 
+    def convolve_smhm(self, StellBins, sig_lnMstar, bin_num, z):
         lnten = np.log(10)
         logMh = self.get_Mhalo(np.asarray(StellBins))
         plus_mins = (5.0 * sig_lnMstar) / self.get_slope(np.asarray(logMh)) ##is this the right sigma?
@@ -203,22 +209,19 @@ class QLF():
         
         return mu_lnMdotbh, lnMdotsig, np.log(Mdotedd)
     
-    def gauss_mdot(self, vals):
+    
+    def gauss_Mdot(self, lnMdotbh):
   
-        x = self.lnMdotbh_list
-        mu = vals[0]
-        sig = vals[1]
+        x = lnMdotbh
+        mu = self.Mdot_mu_sig[:,0]
+        sig = self.Mdot_mu_sig[:,1]
         A = 1
         y = ( A/np.sqrt(2.0 * np.pi * sig**2.0) ) * np.exp( -(x - mu)**2.0 / (2.0 * sig**2) )
 
         return y
     
+    
     def get_dNdlnL(self, lnxsigs):
-        
-        b = np.zeros(self.bin_num)
-        b[self.early] = self.int_list[0]
-        b[self.growth] = self.int_list[1]
-        b[self.late] = self.int_list[2]
         
         lnxsig_list = np.zeros(self.bin_num)
         lnxsig_list[self.early] = lnxsigs[0]
@@ -226,20 +229,17 @@ class QLF():
         lnxsig_list[self.late] = lnxsigs[1]
         tenper = int(self.bin_num * 0.1)
         tranpoint = np.argmin(self.early)
-        lintrans = np.linspace(6, 3, tenper * 2, endpoint = False)
+        lintrans = np.linspace(lnxsigs[0], lnxsigs[1], tenper * 2, endpoint = False)
         lnxsig_list[tranpoint - tenper : tranpoint + tenper] = lintrans
         
         vals = np.zeros((self.bin_num, 4))
         vals[:,0] = self.StellBins
         vals[:,1] = self.m
-        vals[:,2] = b
+        vals[:,2] = self.b
         vals[:,3] = lnxsig_list
-        lnMdot_mu_msig = np.apply_along_axis(self.get_Mdotbh, 1, vals)
+        self.Mdot_mu_sig = np.apply_along_axis(self.get_Mdotbh, 1, vals)
         
         self.lnMdotbh_list = (self.LumBins + np.log10(3.9e33)) * np.log(10) - np.log(0.1*2.99e10**2)
-        vals = np.zeros((self.bin_num, 2))
-        vals[:,0] = lnMdot_mu_msig[:,0]
-        vals[:,1] = lnMdot_mu_msig[:,1]
         
         Rl = 0.8
         Rh = 0.2
@@ -247,19 +247,8 @@ class QLF():
         Lx = 0.037*10**(self.LumBins + np.log10(3.9e33))
         self.FOb = Rl * np.e**(-Lx/Lc) + Rh * (1 - np.e**(-Lx/Lc))
         
+        self.individual = np.apply_along_axis(self.gauss_Mdot, 1, self.lnMdotbh_list.reshape(len(self.lnMdotbh_list),1)) * self.dNdlnMstar * (self.StellBins[1] - self.StellBins[0])
+                                 
+        self.dNdlnL = (1-self.FOb) * np.sum(self.individual, axis = 1)
+    
         
-        #######
-        
-        self.Mdot_sig = lnMdot_mu_msig
-        
-        #######
-        
-        intval = np.apply_along_axis(self.gauss_mdot, 1, vals) * (np.reshape(self.dNdlnMstar,(self.bin_num,1))) * (self.StellBins[1] - self.StellBins[0])
-        self.dNdlnL = (1-self.FOb) * (np.sum(intval, axis = 0))
-        ind_dNdlnL_off = (1-self.FOb) * intval
-        
-        self.ind_dNdlnL = np.zeros((self.bin_num,self.bin_num))
-        c = 0
-        for l in ind_dNdlnL_off:
-            self.ind_dNdlnL[c,:] = l
-            c += 1
