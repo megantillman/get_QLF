@@ -176,7 +176,7 @@ class QLF():
     def get_dNdlnMstar(self, sig_lnMstar):
         
         if sig_lnMstar == 0.:
-            self.dNdlnMstar = mf.massFunction(10.**self.get_Mhalo(self.StellBins), self.z, q_in='M', q_out='dndlnM', mdef='vir', model='despali16')
+            self.dNdlnMstar = mf.massFunction(10.**self.get_Mhalo(self.StellBins), self.z, q_in='M', q_out='dndlnM', mdef='vir', model='despali16') / self.get_slope(self.get_Mhalo(self.StellBins))
         else:
             self.dNdlnMstar = self.convolve_smhm(self.StellBins, sig_lnMstar, self.bin_num, self.z)
 
@@ -192,9 +192,21 @@ class QLF():
         a = self.a
         Mbh = 10**(Mstar*slope+inter)
         
+        
         closest_a = np.argmin(np.abs(a_list - a))
-        closest_m = np.argmin(np.abs(mass_list[closest_a] - Mstar))
-        ssfr = ssfr_list[closest_a][closest_m]
+        masses = np.array(mass_list[closest_a])
+        ssfrs = np.array(ssfr_list[closest_a])
+        closest_m = np.argmin(np.abs(masses - Mstar))
+        
+        nonzero = (ssfrs != 0)
+        minm = np.min(masses[nonzero])
+        maxm = np.max(masses[nonzero])
+        if minm < Mstar < maxm:
+            ssfr = np.interp(Mstar, masses[nonzero], ssfrs[nonzero])
+        else:
+            ssfr = ssfr_list[closest_a][closest_m]
+        
+        
 
         Ledd = 1.3e38 * Mbh #ergs/s 
         Mdotedd = Ledd / (.1 * (2.99e10)**2) #g/s
@@ -207,7 +219,7 @@ class QLF():
         
         lnMdotsig = lnxsig
         
-        return mu_lnMdotbh, lnMdotsig, np.log(Mdotedd)
+        return mu_lnMdotbh, lnMdotsig, np.log(Mdotedd), np.log(Mdotbh), np.log(sbhr), np.log(ssfr)
     
     
     def gauss_Mdot(self, lnMdotbh):
