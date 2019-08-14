@@ -243,15 +243,6 @@ class QLF():
         except:
             lintrans = np.linspace(lnxsigs[0], lnxsigs[1], len(lnxsig_list[0 : tranpoint + tenper]), endpoint = False)
             lnxsig_list[0 : tranpoint + tenper] = lintrans
-#             try:
-#                 lintrans = np.linspace(lnxsigs[0], lnxsigs[1], len(lnxsig_list[0 : tranpoint + tenper]), endpoint = False)
-#                 lnxsig_list[0 : tranpoint + tenper] = lintrans
-#             except:
-#                 try:
-#                     lintrans = np.linspace(lnxsigs[0], lnxsigs[1], len(lnxsig_list[tranpoint - tenper :]))
-#                     lnxsig_list[tranpoint - tenper :] = lintrans
-#                 except:
-#                     lnxsig_list = np.linspace(lnxsigs[0], lnxsigs[1], len(self.StellBins))
         
         vals = np.zeros((len(self.StellBins), 4))
         vals[:,0] = self.StellBins
@@ -270,4 +261,5 @@ class QLF():
         
         self.intvals = np.apply_along_axis(self.gauss_Mdot, 1, self.lnMdotbh_list.reshape(len(self.lnMdotbh_list),1)) * self.dNdlnMstar * (self.StellBins[1] - self.StellBins[0])
                                  
-        self.dNdlnL = (1-self.FOb) * np.sum(self.intvals, axis = 1)
+#         self.dNdlnL = (1-self.FOb) * np.sum(self.intvals, axis = 1)
+        self.dNdlnL = np.sum(self.intvals, axis = 1)
