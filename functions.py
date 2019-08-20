@@ -4,7 +4,7 @@ cosmology.setCosmology('planck15')
 from colossus.lss import mass_function as mf 
 import glob
 import numexpr as ne
-from scipy.optimize import newton
+
 
 
 files = [f.split('a')[1].split('.d')[0] for f in glob.glob('ssfrs/ssfr_a*.dat')]
