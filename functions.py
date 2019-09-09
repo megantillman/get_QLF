@@ -1,10 +1,12 @@
+from numpy.polynomial import chebyshev as C
 import numpy as np
+import scipy as sp
+import scipy.stats
 from colossus.cosmology import cosmology
 cosmology.setCosmology('planck15') 
 from colossus.lss import mass_function as mf 
 import glob
 import numexpr as ne
-
 
 
 files = [f.split('a')[1].split('.d')[0] for f in glob.glob('ssfrs/ssfr_a*.dat')]
@@ -25,7 +27,7 @@ def create_ranges_numexpr(start, stop, N):
 
     return ne.evaluate('((1.0/divisor) * (s1 - s0))*r + s0')
 
-def grab_obs(redshift):
+def grab_obs(redshift): ###observational data from Hopkins+2006
     
     obs_points = []
     with open("obs_collect.txt", 'r') as f:
@@ -42,6 +44,55 @@ def grab_obs(redshift):
             yerr.append(float(i[3]))
             
     return(x,y,yerr)
+
+
+
+def Shen_fit_uncer(z, lums): ###best fit data from Shen+2020
+    
+    def get_params():
+        rand_params = np.zeros((NUM, len(params)))
+        ind = 0
+        for p in params:
+            i = np.random.randint(1,3,NUM)
+            rand_params[:,ind][i == 1] = param_list[ind][0] + np.abs(np.random.normal(0, param_list[ind][1], size = len(i[i==1])))
+            rand_params[:,ind][i == 2] = param_list[ind][0] - np.abs(np.random.normal(0, param_list[ind][2], size = len(i[i==2])))
+            ind += 1
+        return rand_params
+    
+    def shen_func(p):
+        L = lums
+        a0, a1, a2, b0, b1, b2, c0, c1, c2, d0, d1 = p
+        zr = 2.0
+        zfrac = (1 + z)/(1 + zr)
+        g1 = C.chebval(1 + z, [a0, a1, a2])
+        g2 = 2*b0/(zfrac**b1 + zfrac **b2)
+        logLs = 2*c0/(zfrac**c1 + zfrac**c2)
+        logPhis = C.chebval(z, [d0]) + C.chebval(1 + z, [0, d1])
+        Lfrac = 10**L / 10**logLs
+        Phibol = 10**logPhis/(Lfrac**g1 + Lfrac**g2)
+
+        return np.log10(Phibol)
+    
+    params = {'a0':[0.85858, 0.03092, 0.02876], 'a1':[-0.26236, 0.02003, 0.01753], 'a2':[0.02105, 0.00136, 0.00113],\
+        'b0':[2.54992, 0.01915, 0.02949], 'b1':[-1.04735, 0.01815, 0.02999], 'b2':[1.13277, 0.01988, 0.03891],\
+        'c0':[13.01297, 0.00943, 0.01354], 'c1':[-0.57587, 0.00205, 0.00261], 'c2':[0.45361, 0.00290, 0.00434],\
+        'd0':[-3.53138, 0.02694, 0.02690], 'd1':[-0.39961, 0.00871, 0.00896]}
+    param_list = np.array([params[i] for i in params])
+    
+    NUM = int(1e4)
+    
+    rand_params = get_params()
+    ys = np.apply_along_axis(shen_func, 1, rand_params).T
+    ya = shen_func(param_list[:,0])
+    
+    fracs = sp.stats.norm.cdf([-2, -1, 0, 1, 2])
+    percs = np.percentile(ys, 100*fracs, axis=1)
+    
+    std_ave = np.std(ys, axis=1)
+    std_blw = ya-percs[1,:]
+    std_abv = percs[3,:]-ya
+    
+    return ya, std_ave, std_abv, std_blw
 
 
 
@@ -62,7 +113,15 @@ class QLF():
         self.StellBins = np.linspace(8.0, 12.2, int((12.2 - 8.0) / self.bins))
         
         
-    def get_zparams(self): ##converting this to ln????
+        closest_a = np.argmin(np.abs(a_list - self.a))
+        self.ssfrs = np.array(ssfr_list[closest_a])
+        self.nonzero = (self.ssfrs != 0)
+        self.masses = np.array(mass_list[closest_a])
+        self.minm = np.min(self.masses[self.nonzero])
+        self.maxm = np.max(self.masses[self.nonzero])
+        
+        
+    def get_zparams(self):
         a1 = self.a - 1.0
         lna = np.log(self.a)
         self.zparams = {}
@@ -102,43 +161,7 @@ class QLF():
         
         return logMhalo
     
-    
-    def get_SMBM(self, dM, Mmid = 10.3, slope1 = 0.2, slope3 = 1.):
 
-        start = [7., np.log10(1.4*10**4.)]
-        stop = [12., np.log10(1.4*10**9.)]
-        mstar1 = Mmid - dM
-        mstar2 = Mmid + dM
-        int1 = start[1] - start[0] * slope1
-        int3 = stop[1] - stop[0] * slope3
-        x = (int3 - int1) / (slope1 - slope3)
-        y = slope1 * x + int1
-        if mstar1 < x:
-            mstar1 = x
-        mbh1 = slope1 * mstar1 + int1
-        mbh2 = mstar2 + int3
-        slope2 = (mbh2 - mbh1) / (mstar2 - mstar1)
-        int2 = mbh2 - mstar2 * slope2
-        
-        self.dM = dM
-
-        self.slope_list, self.int_list, self.mass_cuts = [slope1, slope2, slope3], [int1, int2, int3], [mstar1, mstar2]
-        
-        self.early = (self.StellBins <= self.mass_cuts[0])
-        self.growth = ((self.StellBins > self.mass_cuts[0]) & (self.StellBins < self.mass_cuts[1]))
-        self.late = (self.StellBins > self.mass_cuts[1])
-        
-        self.m = self.StellBins * 0
-        self.m[self.early] = self.slope_list[0]
-        self.m[self.growth] = self.slope_list[1]
-        self.m[self.late] = self.slope_list[2]
-        
-        self.b = self.StellBins * 0
-        self.b[self.early] = self.int_list[0]
-        self.b[self.growth] = self.int_list[1]
-        self.b[self.late] = self.int_list[2]
-    
-    
     def gauss_array(self, vals, std):
 
         y = (1/np.sqrt(2.0*np.pi*std**2.0))*np.exp((-(vals[:-1]-vals[-1])**2.0)/(2.0*std**2))
@@ -164,7 +187,7 @@ class QLF():
         vals[:,:-1] = logMstar * lnten
         Mstar_prob = np.apply_along_axis(self.gauss_array, 1, vals, sigma)
         dNdlnMstar = np.sum(Mstar_prob * dNdlnMhalo, axis = 1) * (lnMh[:,1] - lnMh[:,0])
-
+        
         return dNdlnMstar
     
     
@@ -177,41 +200,67 @@ class QLF():
             self.dNdlnMstar = self.convolve_smhm(sig_lnMstar)
 
 
+    def get_Mbh(self, logMstar0, approx_local = False):
+        norm = [11, 8.2]
         
+        logMstar = self.StellBins
+        logMbh = logMstar * 0
+        slopes = logMstar * 0
+
+        if approx_local == False:  
+            post_params = [1.12, norm[1] - 1.12*norm[0]]
+            init = [7., 7.*post_params[0]+post_params[1]]
+            pre_params = [0.2, init[1] - init[0] * 0.2]
+
+        else:
+            post_params = [1, -2.8]
+            init = [7., 7.*post_params[0]+post_params[1]]
+            pre_params = [0.2, init[1] - init[0] * 0.2]
+
+        post = (logMstar > logMstar0)
+        pre = (logMstar <= logMstar0)
+        Ms = 10**logMstar
+        Ms0 = 10**logMstar0
+        Mbh0 = 10**(logMstar0 * pre_params[0] + pre_params[1])
+        beta = post_params[0]        
+        alpha = 10**norm[1] / 10**(norm[0]*beta)
+
+        Mbh = Mbh0 + alpha * Ms[post]**(beta-1) * (Ms[post] - Ms0)
+        logMbh[post] = np.log10(Mbh)
+        slopes[post] = alpha * beta * Ms[post]**beta / Mbh
+
+        logMbh[pre] = logMstar[pre] * pre_params[0] + pre_params[1]
+        slopes[pre] = pre_params[0]
+        
+        self.slopes = slopes
+        self.BHBins = logMbh
+        self.pre = pre
+        self.post = post
+        self.mmax = post_params[0]
+    
     
     def get_Mdotbh(self, vals, files = files):
 
         Mstar = vals[0]
         slope = vals[1]
-        inter = vals[2]
+        Mbh = 10**vals[2]
         lnxsig = vals[3]
-        a = self.a
-        Mbh = 10**(Mstar*slope+inter)
         
+        closest_m = np.argmin(np.abs(self.masses - Mstar))
         
-        closest_a = np.argmin(np.abs(a_list - a))
-        masses = np.array(mass_list[closest_a])
-        ssfrs = np.array(ssfr_list[closest_a])
-        closest_m = np.argmin(np.abs(masses - Mstar))
-        
-        nonzero = (ssfrs != 0)
-        minm = np.min(masses[nonzero])
-        maxm = np.max(masses[nonzero])
-        if minm < Mstar < maxm:
-            ssfr = np.interp(Mstar, masses[nonzero], ssfrs[nonzero])
+        if self.minm < Mstar < self.maxm:
+            ssfr = np.interp(Mstar, self.masses[self.nonzero], self.ssfrs[self.nonzero])
         else:
-            ssfr = ssfr_list[closest_a][closest_m]
+            ssfr = self.ssfrs[closest_m]
         
-        
-
-        Ledd = 1.3e38 * Mbh #ergs/s 
-        Mdotedd = Ledd / (.1 * (2.99e10)**2) #g/s
         sbhr = slope * (ssfr / 3.154e7) #1/s
         Mdotbh = sbhr * (Mbh * 2e33) #g/s
         
-        
         mu_lnX = -0.5 * lnxsig**2
         mu_lnMdotbh = mu_lnX + np.log(Mdotbh) 
+        
+        Ledd = 1.3e38 * Mbh #ergs/s 
+        Mdotedd = Ledd / (.1 * (2.99e10)**2)
         
         lnMdotsig = lnxsig
         
@@ -231,11 +280,10 @@ class QLF():
     def get_dNdlnL(self, L, lnxsigs):
         
         lnxsig_list = self.StellBins * 0
-        lnxsig_list[self.early] = lnxsigs[0]
-        lnxsig_list[self.growth] = lnxsigs[1]
-        lnxsig_list[self.late] = lnxsigs[1]
-        tenper = int(0.4 * sum(self.growth))
-        tranpoint = np.argmin(self.early)
+        lnxsig_list[self.pre] = lnxsigs[0]
+        lnxsig_list[self.post] = lnxsigs[1]
+        tenper = int( 0.4 * len(self.slopes[self.post][self.slopes[self.post] <= 1.05 * self.mmax] ) )
+        tranpoint = np.argmin(self.pre)
 
         try:
             lintrans = np.linspace(lnxsigs[0], lnxsigs[1], tenper*2, endpoint = False)
@@ -244,10 +292,11 @@ class QLF():
             lintrans = np.linspace(lnxsigs[0], lnxsigs[1], len(lnxsig_list[0 : tranpoint + tenper]), endpoint = False)
             lnxsig_list[0 : tranpoint + tenper] = lintrans
         
+        
         vals = np.zeros((len(self.StellBins), 4))
         vals[:,0] = self.StellBins
-        vals[:,1] = self.m
-        vals[:,2] = self.b
+        vals[:,1] = self.slopes
+        vals[:,2] = self.BHBins
         vals[:,3] = lnxsig_list
         self.Mdot_mu_sig = np.apply_along_axis(self.get_Mdotbh, 1, vals)
         
@@ -261,5 +310,4 @@ class QLF():
         
         self.intvals = np.apply_along_axis(self.gauss_Mdot, 1, self.lnMdotbh_list.reshape(len(self.lnMdotbh_list),1)) * self.dNdlnMstar * (self.StellBins[1] - self.StellBins[0])
                                  
-#         self.dNdlnL = (1-self.FOb) * np.sum(self.intvals, axis = 1)
         self.dNdlnL = np.sum(self.intvals, axis = 1)
