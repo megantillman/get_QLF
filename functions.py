@@ -282,7 +282,7 @@ class QLF():
         lnxsig_list = self.StellBins * 0
         lnxsig_list[self.pre] = lnxsigs[0]
         lnxsig_list[self.post] = lnxsigs[1]
-        tenper = int( 0.4 * len(self.slopes[self.post][self.slopes[self.post] <= 1.05 * self.mmax] ) )
+        tenper = int( 0.4 * len(self.slopes[self.post][self.slopes[self.post] >= 1.05 * self.mmax] ) )
         tranpoint = np.argmin(self.pre)
 
         try:

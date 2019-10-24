@@ -1,19 +1,42 @@
 # get_QLF
 Northwestern CIERA QLF project
 
-obs_collect.dat: collection of observational data points collected in Hopkins et al. 2006.
+
+DATA FILES:
+
+obs_collect.txt: collection of observational data points collected in Hopkins et al. 2006.
 
 smhm_params.txt: originally smhm_true_med_params.txt holds information to be used in converting from halo mass to stellar and vice versa.
 
-ssfrs: folder containing all the ssfr files needed for calculations in constructing your qlf.
 
-get_QLF_notebook.ipynb: contains my messings with the qlf function
+FOLDERS:
 
-functions_pre-uni-model.py: holds functions and class needed to construct the QLF
-    ---pre-universal accretion rate model QLF--- (Note: The documentation here is largely unnecissary for those wishing to just use the get_QLF function for which seperate documentation explains important technical aspects. This seperate documentation is found in the get_QLF user guide. The documentation below remains for those interested in the interworkings of get_QLF QLF class code etc.)
-    ##I need to go back later and describe for each function what self.variables are defined and thus stored.
-    ##I also need to be more rigorous about the object types (int, float, etc.) and make everything usable with a list when an array is required.
-    ##Honestly can probably get rid of the pre-universal model later but this is for me
+ssfrs: folder containing all the ssfr files needed for calculations in constructing the QLF.
+
+old_models: folder containing python scripts and notebooks for older versions of the QLF.
+
+QUEST: contains code I run on QUEST and some data and plots generated through that code.
+
+plots: contains both general plots I generate and plots generated for the purpose of being in the write-up.
+
+
+PYTHON SCRIPTS/NOTEBOOKS:
+
+functions.py: python script generating the current model of our QLF.
+
+function_updates.ipynb: contains my messings with the qlf function for updating models.
+
+get_QLF_emcee.ipynb: contains the code I was messing with trying to get the emcee package to run.
+
+universal_x_model.ipynb: notebook containing my process/attempts at producing the universal_X part of our QLF model.
+
+general_plotting.ipynb: notebook where I generate general plots for mainly exploritory use.
+
+paper_plots.ipynb: notebook where I generate plots I intend to use in the write-up.
+
+
+
+##this is old documentation I made... not throwing away though
     
     Required packages: numpy, scipy, glob, numexpr, colossus
         -these are imported with the user imports functions_pre-uni-model.py
