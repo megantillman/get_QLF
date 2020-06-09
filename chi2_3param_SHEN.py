@@ -1,4 +1,4 @@
-from functions import *
+from functions_newparams import *
 import h5py
 import itertools
 import numpy as np
@@ -14,31 +14,35 @@ zlist = [0.0, 1.0, 2.0, 3.0, 4.0]
 reso = 40
 qlf_bins = 0.005
 sig_lnMstar = 0.7
+slope_low, norm_from_local = 0.2, 4.0
 lums = np.linspace(8.95, 14.95, 150)
-logMstar0 = np.linspace(8.5,11.5,reso)
-xsigpre = np.linspace(2.0,4.0,reso)
-xsigpost = np.linspace(1.5,3.5,reso)
+logMstar0 = np.linspace(5,12.5,reso)
+xsigpre = np.linspace(1.0,10.0,reso)
+xsigpost = np.linspace(1.0,10.0,reso)
 combos = np.array(list(itertools.product(logMstar0, xsigpre, xsigpost)))
 
-filename = "output/chi2_3pShenfit_"+str(reso)+"_nw_mk2.h5py"
+filename = "output/chi2_3pShenfit_"+str(reso)+"_nw_mk3.h5py"
 
 
 
-f = h5py.File(filename, "w")
+f = h5py.File(filename, "a")
 
 f.attrs.modify('resolution', reso)
 dset = f.create_dataset('logMstar0', data = logMstar0)
 dset = f.create_dataset('siglnX2', data = xsigpost)
 dset = f.create_dataset('siglnX1', data = xsigpre)
+dset = f.create_dataset('slope_low', data = slope_low)
+dset = f.create_dataset('norm_from_local', data = norm_from_local)
 
 f.close()
 
 def chi2(a, z, qlf):
-    qlf.get_Mbh(a[0], approx_local=True)
+    qlf.get_Mbh(a[0], slope_low, norm_from_local, approx_local=True)
     qlf.get_dNdlnL(lums, [a[1], a[2]])
 
     ym = np.log10(qlf.dNdlnL * np.log(10))
-
+    presum = (ym-ya)**2
+#     print(max(presum), np.mean(presum))
     return np.sum((ym-ya)**2)
 
 for z in zlist:
