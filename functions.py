@@ -105,12 +105,12 @@ class QLF():
         self.bins = bins
         self.get_zparams()
 
-        self.HaloBins = np.linspace(7.0, 15.0, int((15.0 - 7.0) / self.bins))
+        self.HaloBins = np.linspace(3.0, 15.0, int((15.0 - 3.0) / self.bins))
 
         self.fp = self.HaloBins
         self.xp = self.get_Mstar(self.fp)
 
-        self.StellBins = np.linspace(7.0, 12.2, int((12.2 - 8.0) / self.bins))
+        self.StellBins = np.linspace(3.0, 12.5, int((12.5 - 3.0) / self.bins))
 
 
         closest_a = np.argmin(np.abs(a_list - self.a))
@@ -149,7 +149,7 @@ class QLF():
 
         return slope
 
-    def get_Mstar(self,logMhalo):
+    def get_Mstar(self,logMhalo): 
 
         dm = logMhalo-self.zparams['m_1']
         dm2 = dm/self.zparams['delta']
