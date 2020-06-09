@@ -1,4 +1,4 @@
-from functions import *
+from functions_newparams import *
 import matplotlib.pyplot as plt
 import corner
 import matplotlib.gridspec as gridspec
@@ -6,7 +6,7 @@ import h5py
 import matplotlib
 
 
-
+folder = 'plots/FINAL_paper_plots/'
 
 
 '''
@@ -71,7 +71,7 @@ def twoXfour_mdot_eta(fit_params = None, zplot = [0, 0, 0, 0], name = 'mdot-eta-
     
     ### formatting
     color = ['r','orange','green','blue','violet']
-    lw, fs, tw, tl, textx, texty = 1, 11, 1, 5, 10**-1.2, 0.175
+    lw, fs, tw, tl, textx, texty = 1, 18, 1, 5, 10**-2, 0.175
 
     
     ### plotting eta and mdot for each z
@@ -91,7 +91,7 @@ def twoXfour_mdot_eta(fit_params = None, zplot = [0, 0, 0, 0], name = 'mdot-eta-
         lnMdot = qlf.Mdot_mu_sig[:,0]
         sigs = qlf.Mdot_mu_sig[:,1]
         
-        lnMdotedd = qlf.Mdot_mu_sig[:,2]
+        lnMdotedd = np.log(1.3e38 * 10**qlf.BHBins / (0.1 * (2.99e10)**2))
         lneta = lnMdot - lnMdotedd
         lnMdot = np.log( np.e**lnMdot / (3.17098e-8 * 2e33) )
     
@@ -101,14 +101,15 @@ def twoXfour_mdot_eta(fit_params = None, zplot = [0, 0, 0, 0], name = 'mdot-eta-
             x = np.linspace(-40, 1, 200)
             y = ( 1 / np.sqrt(2.0 * np.pi * sigs[ int(i) ]**2.0) ) * np.exp( - (x - lneta[ int(i) ])**2.0 / (2.0 * sigs[ int(i) ]**2) )
 
-            ax[0].plot(np.e**x, y, color=c, lw = lw, label = r'M$_*/M_{\odot} = 10^{'+str(M)+'}$')
+            ax[0].plot(np.e**x, y, color=c, lw = lw, label = r'$10^{'+str(M)+'}$')
         
         ### some pretty stuff
         ax[0].text(textx,texty, 'z = '+str(z), fontsize = fs)
         ax[0].set_xscale('log')
         ax[0].axis([10**-10.5, np.e**x[-1], 0, max(y)+0.01])
-        ax[0].legend(loc='upper left', fontsize = fs)
-        ax[0].tick_params(direction='in', width = tw, length = tl, right = True)
+        legend = ax[0].legend(loc='upper left', fontsize = fs, title = r'M$_*/M_{\odot}=$' )
+        legend.get_title().set_fontsize('14')
+        ax[0].tick_params(direction='in', width = tw, length = tl, right = True, labelsize = 12)
     
         ### plot mdot
         for M, c in zip(mass, color):
@@ -116,14 +117,15 @@ def twoXfour_mdot_eta(fit_params = None, zplot = [0, 0, 0, 0], name = 'mdot-eta-
             x = np.linspace(-50, 3, 200)
             y = ( 1 / np.sqrt(2.0 * np.pi * sigs[ int(i) ]**2.0) ) * np.exp( - (x - lnMdot[ int(i) ])**2.0 / (2.0 * sigs[ int(i) ]**2) )
 
-            ax[1].plot(np.e**x, y, color=c, lw = lw, label = r'M$_*/M_{\odot} = 10^{'+str(M)+'}$')
+            ax[1].plot(np.e**x, y, color=c, lw = lw, label = r'$10^{'+str(M)+'}$')
         
         ### more pretty stuff
         ax[1].text(textx, texty, 'z = '+str(z), fontsize = fs) 
         ax[1].set_xscale('log')
         ax[1].axis([10**-13.5, np.e**x[-1], 0, max(y)+0.01])
-        ax[1].legend(loc='upper left', fontsize = fs)
-        ax[1].tick_params(direction='in', width = tw, length = tl, right = True)
+        legend = ax[1].legend(loc='upper left', fontsize = fs, title = r'M$_*/M_{\odot}=$' )
+        legend.get_title().set_fontsize('14')
+        ax[1].tick_params(direction='in', width = tw, length = tl, right = True, labelsize = 12)
         
         ### axes labels
         if ax[1] in [ax7, ax8]:
@@ -134,8 +136,8 @@ def twoXfour_mdot_eta(fit_params = None, zplot = [0, 0, 0, 0], name = 'mdot-eta-
             ax[1].set_ylabel(r'Probability', fontsize = fs)  
     
     ### save
-    plt.savefig('plots/paper-plots/'+name)
-    print('\n Saved figure as "plots/paper-plots/'+name+'"\n')
+    plt.savefig(folder+name)
+    print('\n Saved figure as "'+folder+name+'"\n')
        
 '''
 _________________________________________________________________________________________________________________________________________________________
@@ -264,22 +266,22 @@ def QLFwShen(fit_params = None, z = 0.0, name = 'z0-QLF-v-Shen.pdf', Hopkins = F
     
     ### plotting Shen data and our QLF
     ax.plot(lumsp, np.log10(qlf.dNdlnL * np.log(10)), c='k', label = 'Predicted QLF',linestyle='dashed')
-    ax.plot(xshen, dens, label='Shen+submitted',c='k',lw=2)
+    ax.plot(xshen, dens, label='Shen et al. 2020',c='k',lw=2)
     ax.fill_between(xshen, dens-stanab, dens+stanb, color='gray', alpha=.75)
     ax.axvline(xshen[0],c='k',linestyle='dotted')
     ax.axvline(xshen[-1],c='k',linestyle='dotted')
     
     ### formatting and save
     ax.axis([10**6*3.8e33,10**18*3.8e33,-10,0])
-    ax.set_xlabel(r'$L_{bol} (erg\ s^{-1})$', fontsize=14)
-    ax.set_ylabel(r'$\log_{10} \Phi (Mpc^{-3} \log_{10} [L_{bol}]^{-1})$', fontsize =14)
-    ax.text(10**7.5*3.8e33,-1.5,'z = '+str(z),fontsize = 14)
+    ax.set_xlabel(r'$L_{bol} (erg\ s^{-1})$', fontsize=18)
+    ax.set_ylabel(r'$\log_{10} \Phi (Mpc^{-3} \log_{10} [L_{bol}]^{-1})$', fontsize =18)
+    ax.text(10**7.5*3.8e33,-1.5,'z = '+str(z),fontsize = 18)
     ax.set_xscale('log')
-    ax.tick_params(axis='both', which='both', labelsize=14, direction='in')
-    ax.legend()
+    ax.tick_params(axis='both', which='both', labelsize=16, direction='in')
+    ax.legend(fontsize = 16)
     
-    plt.savefig('plots/paper-plots/'+name)
-    print('\n Saved figure as "plots/paper-plots/'+name+'"\n')
+    plt.savefig(folder+name)
+    print('\n Saved figure as "'+folder+name+'"\n')
     
 '''
 _________________________________________________________________________________________________________________________________________________________
@@ -361,7 +363,7 @@ def QLF9wShen(fit_params = None, z = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.
     xshen = 10**lumsshen*3.8e33
     dens, stanave, stanab, stanb = Shen_fit_uncer(z[0], lumsshen)
     
-    ax1.plot(xshen, dens, label='Shen+submitted',c='black',linestyle='solid',lw = 2)
+    ax1.plot(xshen, dens, label='Shen et al. 2020',c='black',linestyle='solid',lw = 2)
     ax1.fill_between(xshen, dens-stanab, dens+stanb, color='gray', alpha=.75)
     ax1.axvline(xshen[0],c='k',linestyle='dotted')
     ax1.axvline(xshen[-1],c='k',linestyle='dotted')
@@ -373,12 +375,12 @@ def QLF9wShen(fit_params = None, z = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.
 
     ### formatting axes
     ax1.axis([10**6*3.8e33,10**18*3.8e33,-10,0])
-    ax1.set_xlabel(r'$\log_{10} [L_{bol}] \ \ \ (erg \ s^{-1})$', fontsize=18)
-    ax1.set_ylabel(r'$\log_{10} \Phi (Mpc^{-3} \log_{10} [L_{bol}]^{-1})$', fontsize =18)
+    ax1.set_xlabel(r'$\log_{10} [L_{bol}] \ \ \ (erg \ s^{-1})$', fontsize=26)
+    ax1.set_ylabel(r'$\log_{10} \Phi (Mpc^{-3} \log_{10} [L_{bol}]^{-1})$', fontsize =26)
     ax1.legend(fontsize = 20)
-    ax1.text(10**7.5*3.8e33,-1.5,'z = '+str(z[0]),fontsize = 14)
+    ax1.text(10**7.5*3.8e33,-1.5,'z = '+str(z[0]),fontsize = 22)
     ax1.set_xscale('log')
-    ax1.tick_params(axis='both', which='both', labelsize=14, direction='in')
+    ax1.tick_params(axis='both', which='both', labelsize=20, direction='in')
 
 
     for r, i, j in zip(z[1:],[0,0,0,0,1,1,1,1],[2,3,4,5,2,3,4,5]):
@@ -423,13 +425,13 @@ def QLF9wShen(fit_params = None, z = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.
     
         ### formatting axes
         ax.axis([10**6*3.8e33,10**18*3.8e33,-10,0])
-        ax.text(10**9.5*3.8e33,-1.5,'z = '+str(r),fontsize = 12)
+        ax.text(10**9.5*3.8e33,-1.5,'z = '+str(r),fontsize = 18)
         ax.set_xscale('log')
-        ax.tick_params(axis='both', which='both', labelsize=12, direction='in')
+        ax.tick_params(axis='both', which='both', labelsize=16, direction='in')
         
     plt.tight_layout()
-    plt.savefig('plots/paper-plots/'+name)
-    print('\n Saved figure as "plots/paper-plots/'+name+'"\n')
+    plt.savefig(folder+name)
+    print('\n Saved figure as "'+folder+name+'"\n')
     
 '''
 _________________________________________________________________________________________________________________________________________________________
@@ -543,7 +545,7 @@ def free_param_effects(fit_params = None, z = 0.0, name = 'free_param_effects_v3
     
     ### plot Shen data on all axes, and maybe the Hopkins
     for ax in [ax0, ax1, ax2]:
-        ax.plot(lumss, dens, label='Shen+submitted',c='black',linestyle='solid',lw = 2)
+        ax.plot(lumss, dens, label='Shen et al. 2020',c='black',linestyle='solid',lw = 2)
         ax.fill_between(lumss, dens-stanab, dens+stanb, color='gray', alpha=.75)
         if Hopkins == True:
             ax.errorbar(x, y, yerr = yerr, fmt = 'o', markersize = .15, c='gray', label = 'observed')
@@ -553,7 +555,7 @@ def free_param_effects(fit_params = None, z = 0.0, name = 'free_param_effects_v3
         ax.set_xlabel(r'$\log_{10} [L_{bol}/L_{\odot}]$', fontsize=18)
         ax.axis([min(xm),max(xm),-11,-2])
         ax.set_xscale('log')
-        ax.tick_params(axis='both', which='both', direction='in')
+        ax.tick_params(axis='both', which='both', direction='in', labelsize = 18)
     
     ### one y label since they share axes
     ax0.set_ylabel(r'$\log_{10} \Phi (Mpc^{-3} \log_{10} [L_{bol}]^{-1})$', fontsize =18)
@@ -562,5 +564,5 @@ def free_param_effects(fit_params = None, z = 0.0, name = 'free_param_effects_v3
     plt.setp(ax1.get_yticklabels(), visible=False)
     plt.setp(ax2.get_yticklabels(), visible=False)
     plt.tight_layout
-    plt.savefig('plots/paper-plots/'+name)
-    print('\n Saved figure as "plots/paper-plots/'+name+'"\n')
+    plt.savefig(folder+name)
+    print('\n Saved figure as "'+folder+name+'"\n')
