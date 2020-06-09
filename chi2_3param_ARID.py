@@ -1,0 +1,180 @@
+from functions import *
+import h5py
+import itertools
+import numpy as np
+import scipy as sp
+import scipy.stats
+from numpy.polynomial import chebyshev as C
+import timeit
+import warnings
+
+warnings.filterwarnings("ignore")
+
+reso = 40
+b = 0.005
+SIG_lnMs = 0.7
+L = np.linspace(5,18,100)
+logMstar0 = np.linspace(7.25,11.5,reso)
+xsigpre = np.linspace(1.75,6.0,reso)
+xsigpost = np.linspace(1.5,3.5,reso)
+combos = np.array(list(itertools.product(logMstar0, xsigpre, xsigpost)))
+
+filename = "output/chi2_3pARIDfit_"+str(reso)+"_yw.h5py"
+
+
+
+f = h5py.File(filename, "w")
+
+f.attrs.modify('resolution', reso)
+dset = f.create_dataset('logMstar0', data = logMstar0)
+dset = f.create_dataset('siglnX2', data = xsigpost)
+dset = f.create_dataset('siglnX1', data = xsigpre)
+
+f.close()
+
+
+#### this collects the arid duty data
+duty_arid = open("plot_data/fduty_vs_z.dat",'r')
+all_gal, zl, zh, ml, mh, per, el, eh = [], [], [], [], [], [], [], []
+### read through file
+for i in duty_arid.readlines():
+    s = i.split()
+    if s[0] == 'All':
+        zl.append(float(s[1])), zh.append(float(s[2])), ml.append(float(s[3])), mh.append(float(s[4]))
+        per.append(float(s[5])), el.append(float(s[6])), eh.append(float(s[7].split("\n")[0]))
+### collect the error values
+yerr = np.zeros([2,len(el)])
+yerr[0,:], yerr[1,:] = el, eh
+### set up mass bins and list of z values to evaluate
+mass = [8.5,9.0,9.5,10.0,10.5,11.0]
+ztot = sorted(set((np.array(zl) + np.array(zh))/2))
+### set up duty arid data to compare
+DUTY_ARID = np.zeros((len(mass),len(ztot)))
+DUTY_ARID_errup = np.zeros((len(mass),len(ztot)))
+DUTY_ARID_errdown = np.zeros((len(mass),len(ztot)))
+aveETA_ARID = np.zeros((len(mass)-2, len(ztot)))
+aveETA_ARID_errup = np.zeros((len(mass)-2, len(ztot)))
+aveETA_ARID_errdown =  np.zeros((len(mass)-2, len(ztot)))
+###
+### collect duty for compare
+for m, i in zip(mass, range(len(mass))):
+    ind = np.where(np.array(ml) == m)[0]
+    DUTY_ARID[i,0:len(ind)] = np.array(per)[ind]
+    DUTY_ARID_errup[i,0:len(ind)] = yerr[1,ind]
+    DUTY_ARID_errdown[i,0:len(ind)] = yerr[0,ind]
+###
+### collect ave eta for compare
+colors = ['teal', 'gold', 'brown', 'r']
+for i, c in zip(range(len(mass)-2), colors):
+    x = []
+    y = []
+    yerrup = []
+    yerrdown = []
+    duty_arid = open("plot_data/pledd_all_extracted.dat",'r')
+    for line in duty_arid.readlines():
+        s = line.split()
+        if s[0][0] != '#' and s[0] == c:
+            x.append(float(s[1]))
+            y.append(float(s[2]))
+            yerrup.append(float(s[3])-float(s[2]))
+            yerrdown.append(float(s[2])-float(s[4].split("\n")[0]))
+    aveETA_ARID[i,0:len(x)] = np.array(y)
+    aveETA_ARID_errup[i,0:len(x)] = np.array(yerrup)
+    aveETA_ARID_errdown[i,0:len(x)] = np.array(yerrdown)
+    duty_arid.close()  
+dutyinds = np.where((DUTY_ARID != 0))
+etainds = np.where((aveETA_ARID != 0))
+
+DUTY_ARID = np.log10(DUTY_ARID)
+DUTY_ARID_errup = np.log10(DUTY_ARID_errup)
+DUTY_ARID_errdown = np.log10(DUTY_ARID_errdown)
+
+criteria = np.log(0.01)
+
+
+
+def get_chi2(ym, ya, err_abv, err_blw):
+    abv = (ym[ym > ya] - ya[ym > ya])**2 / err_abv[ym > ya]**2
+    blw = (ym[ym < ya] - ya[ym < ya])**2 / err_blw[ym < ya]**2
+    abv[np.where((abv>100.))] = 100.
+    blw[np.where((blw>100.))] = 100.
+    return np.sum(abv) + np.sum(blw)
+
+def compare_data(combo):
+    pre, post, Ms_crit = combo[1], combo[2], combo[0]
+    #### initialize
+    count = 0
+    DUTY_tot = np.zeros((len(mass),len(ztot)))
+    aveETA_tot = np.zeros((len(mass)-2, len(ztot)))
+
+    #### function to calculate the values based on a mstar value and the index of that specific values for related values
+    def dut_eta(Ms, ind):
+        MU_lnlambda = MU_lnLbol[ind] - np.log(1.3e38*0.002*(10**Ms)) #log dimensionless
+        lnlambda = lnLbol - np.log(1.3e38*0.002*(10**Ms))
+
+        y = ( 1/np.sqrt(2.0 * np.pi * SIG_MdotBH[ind]**2.0) ) * np.exp( -(lnlambda - MU_lnlambda)**2.0 / (2.0 * SIG_MdotBH[ind]**2) )
+        duty = np.trapz(y[lnlambda>=criteria]*dNdlnMstar[ind], x=lnlambda[lnlambda>=criteria])
+        aveeta = np.sum(y[lnlambda>=criteria]*np.e**lnlambda[lnlambda>=criteria]*(lnlambda[1]-lnlambda[0])*dNdlnMstar[ind])
+
+        return duty, aveeta
+
+    #### loop through z values first because it saves time
+    zcount = 0
+    for z in ztot:
+        qlf = QLF(z, b)
+        qlf.get_dNdlnMstar(SIG_lnMs)
+        qlf.get_Mbh(Ms_crit, approx_local=True)
+        qlf.get_dNdlnL(L, [pre, post])
+
+        MdotBH = qlf.MdotBH
+        MU_MdotBH = qlf.Mdot_mu_sig[:,0]
+        SIG_MdotBH = qlf.Mdot_mu_sig[:,1]
+        lnMs = qlf.StellBins
+        dNdlnMstar = qlf.dNdlnMstar
+
+        lnLbol = np.log(10**L*3.83e33) #log of erg/s
+        MU_lnLbol = MU_MdotBH + np.log(0.1 * (2.99e10)**2) #log of erg/s
+
+        Mcount = 0
+        for Ms in mass:
+            inds = np.where((lnMs > Ms) & (lnMs < Ms+0.5))[0]
+            lnMstar_tot = np.trapz(dNdlnMstar[inds], x=lnMs[inds])
+            h = (lnMs[inds[-1]] - lnMs[inds[0]]) / len(inds)
+            for i in inds:
+                dut, eta = dut_eta(lnMs[i], i)
+                DUTY_tot[Mcount,zcount] += dut*h
+                if Mcount >= 2:
+                    aveETA_tot[Mcount-2,zcount] += eta*h
+            if Mcount >= 2:
+                aveETA_tot[Mcount-2,zcount] = aveETA_tot[Mcount-2,zcount]/DUTY_tot[Mcount,zcount]
+            DUTY_tot[Mcount,zcount] = DUTY_tot[Mcount,zcount]/lnMstar_tot
+            Mcount += 1
+        zcount += 1
+
+    DUTY_tot = np.log10(DUTY_tot*100)
+    aveETA_tot = np.log10(aveETA_tot)
+    
+    chi2 = 0
+    ym, ya = DUTY_tot[dutyinds], DUTY_ARID[dutyinds]
+    err_abv, err_blw = DUTY_ARID_errup[dutyinds], DUTY_ARID_errdown[dutyinds]
+    chi2 += get_chi2(ym, ya, err_abv, err_blw)
+    ym, ya = aveETA_tot[etainds], aveETA_ARID[etainds]
+    err_abv, err_blw = aveETA_ARID_errup[etainds], aveETA_ARID_errdown[etainds]
+    chi2 += get_chi2(ym, ya, err_abv, err_blw)
+    return chi2
+
+print('Collected the ARID data, begining iterations of best fit parameters.')
+print('This may take a while...')
+
+start = timeit.default_timer()
+
+chi23d = np.apply_along_axis(compare_data, 1, combos).reshape(reso, reso, reso)
+
+stop = timeit.default_timer()
+print('Completed after time: ', stop - start )
+ 
+print('Saving data to output file...')
+f = h5py.File(filename, "a")
+dset = f.create_dataset('chi23d_grid', data = chi23d)
+f.close()
+print('Complete!')
