@@ -1,4 +1,4 @@
-from functions_newparams import *
+from functions_notfuckedup import *
 import h5py
 import itertools
 import numpy as np
@@ -14,7 +14,7 @@ zlist = [0.0, 1.0, 2.0, 3.0, 4.0]
 reso = 40
 qlf_bins = 0.005
 sig_lnMstar = 0.7
-slope_low, norm_from_local = 0.2, 4.0
+# slope_low, norm_from_local = 0.2, 4.0
 lums = np.linspace(8.95, 14.95, 150)
 logMstar0 = np.linspace(5,12.5,reso)
 xsigpre = np.linspace(1.0,10.0,reso)
@@ -37,7 +37,7 @@ dset = f.create_dataset('norm_from_local', data = norm_from_local)
 f.close()
 
 def chi2(a, z, qlf):
-    qlf.get_Mbh(a[0], slope_low, norm_from_local, approx_local=True)
+    qlf.get_Mbh(a[0], approx_local=True)
     qlf.get_dNdlnL(lums, [a[1], a[2]])
 
     ym = np.log10(qlf.dNdlnL * np.log(10))

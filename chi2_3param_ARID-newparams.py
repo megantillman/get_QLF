@@ -37,8 +37,12 @@ aveETA_ARID_errdown =  np.zeros((len(mass)-2, len(ztot)))
 for m, i in zip(mass, range(len(mass))):
     ind = np.where(np.array(ml) == m)[0]
     DUTY_ARID[i,0:len(ind)] = np.array(per)[ind]
-    DUTY_ARID_errup[i,0:len(ind)] = yerr[1,ind]
-    DUTY_ARID_errdown[i,0:len(ind)] = yerr[0,ind]
+    dutyup = DUTY_ARID[i,0:len(ind)] + yerr[1,ind]
+    logerrup = np.log10(dutyup) - np.log10(DUTY_ARID[i,0:len(ind)])
+    dutydown = DUTY_ARID[i,0:len(ind)] - yerr[0,ind]
+    logerrdown = np.log10(DUTY_ARID[i,0:len(ind)]) - np.log10(dutydown)
+    DUTY_ARID_errup[i,0:len(ind)] = logerrup
+    DUTY_ARID_errdown[i,0:len(ind)] = logerrdown
 ###
 ### collect ave eta for compare
 colors = ['teal', 'gold', 'brown', 'r']
@@ -61,27 +65,22 @@ for i, c in zip(range(len(mass)-2), colors):
     duty_arid.close()  
 
 DUTY_ARID = np.log10(DUTY_ARID)
-DUTY_ARID_errup = np.log10(DUTY_ARID_errup)
-DUTY_ARID_errdown = np.log10(DUTY_ARID_errdown)
 
 criteria = np.log(0.01)
-
-#set the M*crit and post-disk sig values to be constant
-post, Ms_crit = 2.3, 10.3
 
 
 def get_chi2(ym, ya, err_abv, err_blw):
     abv = (ym[ym > ya] - ya[ym > ya])**2 / err_abv[ym > ya]**2
     blw = (ym[ym < ya] - ya[ym < ya])**2 / err_blw[ym < ya]**2
-    abv[np.where((abv>100.))] = 100.
-    blw[np.where((blw>100.))] = 100.
+    abv[np.where((abv>50.))] = 50.
+    blw[np.where((blw>50.))] = 50.
     return np.sum(abv) + np.sum(blw)
 
 
 def partial_chi2(combo):
-    pre, post, Ms_crit = combo[1], combo[2], combo[0]
-    qlf.get_Mbh(Ms_crit, approx_local=True)
-    qlf.get_dNdlnL(L, [pre, post])
+    pre, slope, norm = combo[1], combo[2], combo[0]
+    qlf.get_Mbh(logMstar0, slope, norm, approx_local=True)
+    qlf.get_dNdlnL(L, [pre, xsigpost])
     
     DUTY = np.zeros(len(mass))
     aveETA = np.zeros((len(mass)-2))
@@ -121,37 +120,49 @@ def partial_chi2(combo):
         Mcount += 1
 
     DUTY = np.log10(DUTY*100)
+    DUTY[DUTY==-np.inf] = 0
     aveETA = np.log10(aveETA)
+    aveETA[np.isnan(aveETA)] = 0
     
     chi2 = 0
     ym, ya = DUTY[dutyinds], DUTY_ARID[:,zcount][dutyinds]
     err_abv, err_blw = DUTY_ARID_errup[:,zcount][dutyinds], DUTY_ARID_errdown[:,zcount][dutyinds]
-    chi2 += get_chi2(ym, ya, err_abv, err_blw)
+    chi2_dut = get_chi2(ym, ya, err_abv, err_blw)
+    chi2 += chi2_dut
+    
     ym, ya = aveETA[etainds], aveETA_ARID[:,zcount][etainds]
     err_abv, err_blw = aveETA_ARID_errup[:,zcount][etainds], aveETA_ARID_errdown[:,zcount][etainds]
-    chi2 += get_chi2(ym, ya, err_abv, err_blw)
+    chi2_eta = get_chi2(ym, ya, err_abv, err_blw)
+    chi2 += chi2_eta
+    
+        
+        
     return chi2
 
-
-reso = 5
+#set the M*crit and post-disk sig values to be constant
+reso = 15
 b = 0.005
 SIG_lnMs = 0.7
 L = np.linspace(5,18,100)
-logMstar0 = np.linspace(7.25,11.5,reso)
-xsigpre = np.linspace(1.75,6.0,reso)
-xsigpost = np.linspace(1.5,3.5,reso)
-combos = np.array(list(itertools.product(logMstar0, xsigpre, xsigpost)))
+logMstar0 = 10.3
+xsigpost = 2.3
+xsigpre = np.linspace(1.0,10.0,reso)
+slopes = np.linspace(0.0,1.5,reso)
+norms = np.linspace(0.0,3.0,reso)
+combos = np.array(list(itertools.product(slopes, xsigpre, norms)))
 
-filename = "output/chi2_3pARIDfit_"+str(reso)+"_yw_mk2_plusz.h5py"
+filename = "output/chi2_3pARIDfit_"+str(reso)+"_newparams-fixweights.h5py"
 
 
 
 f = h5py.File(filename, "w")
 
 f.attrs.modify('resolution', reso)
-dset = f.create_dataset('logMstar0', data = logMstar0)
-dset = f.create_dataset('siglnX2', data = xsigpost)
+dset = f.create_dataset('logMstar0', data = np.asarray(logMstar0))
+dset = f.create_dataset('siglnX2', data = np.asarray(xsigpost))
+dset = f.create_dataset('norm_from_local', data = norms)
 dset = f.create_dataset('siglnX1', data = xsigpre)
+dset = f.create_dataset('slope_low', data = slopes)
 
 f.close()
 
