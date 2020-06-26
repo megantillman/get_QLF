@@ -144,18 +144,18 @@ def partial_chi2(combo):
     return chi2
 
 #set the M*crit and post-disk sig values to be constant
-reso = 30
+reso = 15
 b = 0.005
 SIG_lnMs = 0.7
 L = np.linspace(5,18,100)
-logMstar0 = 10.58
-xsigpost = 1.23
+logMstar0 = 10.36 #10.58
+xsigpost = 1.64 #1.23
 xsigpre = np.linspace(1.0,10.0,reso)
 slopes = np.linspace(0.01,1.5,reso)
 norms = np.linspace(0.0,3.0,reso)
 combos = np.array(list(itertools.product(slopes, xsigpre, norms)))
 
-filename = "output/chi2_3pARIDfit_"+str(reso)+"_newparams_wfloor.h5py"
+filename = "output/chi2_3pARIDfit_"+str(reso)+"_newparams_wfloor_Shen-set.h5py"
 
 
 
