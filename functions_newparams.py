@@ -120,7 +120,8 @@ class QLF():
         self.minm = np.min(self.masses[self.nonzero])
         self.maxm = np.max(self.masses[self.nonzero])
         
-        self.SSFRs = np.interp(self.StellBins, self.masses[self.nonzero], self.ssfrs[self.nonzero])
+        self.SSFRs = 10**np.interp(self.StellBins, self.masses[self.nonzero], np.log10(self.ssfrs[self.nonzero]))
+#         self.SSFRs = np.interp(self.StellBins, self.masses[self.nonzero], self.ssfrs[self.nonzero])
 
 
 
@@ -205,7 +206,8 @@ class QLF():
 
     def get_Mbh(self, logMstar0, slope_low = 0.2, norm_from_local =4.0, approx_local = False):
         norm = [11, 8.2]
-
+        
+        self.logMstar0 = logMstar0
         logMstar = self.StellBins
         logMbh = logMstar * 0
         slopes = logMstar * 0
@@ -246,11 +248,11 @@ class QLF():
         self.pre = pre
         self.post = post
         self.mmax = post_params[0]
-
-        self.SBHARs = self.slopes * (self.SSFRs / 3.154e7)
-        self.MdotBH = self.SBHARs * (10**self.BHBins * 2e33)
-        self.Ledd = 1.3e38 * 10**self.BHBins
-        self.Mdotedd = self.Ledd / (.1 * (2.99e10)**2)
+        ## SSFR are in yr^-1
+        self.SBHARs = self.slopes * (self.SSFRs / 3.154e7) ## s^-1
+        self.MdotBH = self.SBHARs * (10**self.BHBins * 2e33) ## g/s
+        self.Ledd = 1.3e38 * 10**self.BHBins ## erg/s
+        self.Mdotedd = self.Ledd / (.1 * (2.99e10)**2) ## g/s
 
 
     def get_Mdotbh(self, vals, files = files):
@@ -275,20 +277,32 @@ class QLF():
 
 
     def get_dNdlnL(self, L, lnxsigs): 
+        
+### old method for applying a smooth transition of lnX sigmas
+#         lnxsig_list = self.StellBins * 0
+#         lnxsig_list[self.pre] = lnxsigs[0]
+#         lnxsig_list[self.post] = lnxsigs[1]
+#         tenper = int( 0.4 * len(self.slopes[self.post][self.slopes[self.post] >= 1.05 * self.mmax] ) )
+#         tranpoint = np.argmin(self.pre)
+
+#         try:
+#             lintrans = np.linspace(lnxsigs[0], lnxsigs[1], tenper*2, endpoint = False)
+#             lnxsig_list[tranpoint - tenper : tranpoint + tenper] = lintrans
+#         except:
+#             lintrans = np.linspace(lnxsigs[0], lnxsigs[1], len(lnxsig_list[0 : tranpoint + tenper]), endpoint = False)
+#             lnxsig_list[0 : tranpoint + tenper] = lintrans
+#         self.lnxsig_list = lnxsig_list
 
         lnxsig_list = self.StellBins * 0
         lnxsig_list[self.pre] = lnxsigs[0]
         lnxsig_list[self.post] = lnxsigs[1]
-        tenper = int( 0.4 * len(self.slopes[self.post][self.slopes[self.post] >= 1.05 * self.mmax] ) )
-        tranpoint = np.argmin(self.pre)
-
-        try:
-            lintrans = np.linspace(lnxsigs[0], lnxsigs[1], tenper*2, endpoint = False)
-            lnxsig_list[tranpoint - tenper : tranpoint + tenper] = lintrans
-        except:
-            lintrans = np.linspace(lnxsigs[0], lnxsigs[1], len(lnxsig_list[0 : tranpoint + tenper]), endpoint = False)
-            lnxsig_list[0 : tranpoint + tenper] = lintrans
-        self.lnxsig_list = lnxsig_list
+        ### start transition at the M*crit value
+        critpoint = np.argmin(np.abs(self.StellBins - self.logMstar0))
+        ### end transistion 0.5 dex after that value
+        endtran = np.argmin(np.abs(self.StellBins - (self.logMstar0 + 0.5)))
+        lintrans = np.linspace(lnxsigs[0], lnxsigs[1], len(lnxsig_list[critpoint-1:endtran]))
+        lnxsig_list[critpoint-1:endtran] = lintrans
+        
 
 
         vals = np.zeros((len(self.StellBins), 2))
