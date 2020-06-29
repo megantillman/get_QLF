@@ -119,8 +119,21 @@ class QLF():
         self.masses = np.array(mass_list[closest_a])
         self.minm = np.min(self.masses[self.nonzero])
         self.maxm = np.max(self.masses[self.nonzero])
-        
         self.SSFRs = 10**np.interp(self.StellBins, self.masses[self.nonzero], np.log10(self.ssfrs[self.nonzero]))
+        
+        ####extrap the higher masses as linear
+        slope = (np.log10(self.ssfrs[self.nonzero][-1]) - np.log10(self.ssfrs[self.nonzero][-2])) / (self.masses[self.nonzero][-1] - self.masses[self.nonzero][-2])
+        inter = np.log10(self.ssfrs[self.nonzero][-1]) - slope * self.masses[self.nonzero][-1]
+        gtzero = (self.StellBins >= self.masses[self.nonzero][-1])
+        self.SSFRs[gtzero] = 10**(self.StellBins[gtzero]*slope + inter)
+        ####extrap the lower masses as linear
+        slope = (np.log10(self.ssfrs[1]) - np.log10(self.ssfrs[0])) / (self.masses[1] - self.masses[0])
+        inter = np.log10(self.ssfrs[0]) - slope * self.masses[0]
+        ltavail = (self.StellBins < self.masses[0])
+        self.SSFRs[ltavail] = 10**(self.StellBins[ltavail]*slope + inter)
+        ####end this
+        
+        
 #         self.SSFRs = np.interp(self.StellBins, self.masses[self.nonzero], self.ssfrs[self.nonzero])
 
 
