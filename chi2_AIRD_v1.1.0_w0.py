@@ -37,14 +37,8 @@ aveETA_ARID_errdown =  np.zeros((len(mass)-2, len(ztot)))
 for m, i in zip(mass, range(len(mass))):
     ind = np.where(np.array(ml) == m)[0]
     DUTY_ARID[i,0:len(ind)] = np.array(per)[ind]
-    dutyup = DUTY_ARID[i,0:len(ind)] + yerr[1,ind]
-    logerrup = np.log10(dutyup) - np.log10(DUTY_ARID[i,0:len(ind)])
-    logerrup[logerrup <= 0.1] = 0.1
-    dutydown = DUTY_ARID[i,0:len(ind)] - yerr[0,ind]
-    logerrdown = np.log10(DUTY_ARID[i,0:len(ind)]) - np.log10(dutydown)
-    logerrdown[logerrdown <= 0.1] = 0.1
-    DUTY_ARID_errup[i,0:len(ind)] = logerrup * np.sqrt(1.49/1.26)
-    DUTY_ARID_errdown[i,0:len(ind)] = logerrdown * np.sqrt(1.49/1.26)
+    DUTY_ARID_errup[i,0:len(ind)] = yerr[1,ind]
+    DUTY_ARID_errdown[i,0:len(ind)] = yerr[0,ind]
 ###
 ### collect ave eta for compare
 colors = ['teal', 'gold', 'brown', 'r']
@@ -64,20 +58,20 @@ for i, c in zip(range(len(mass)-2), colors):
     aveETA_ARID[i,0:len(x)] = np.array(y)
     aveETA_ARID_errup[i,0:len(x)] = np.array(yerrup)
     aveETA_ARID_errdown[i,0:len(x)] = np.array(yerrdown)
-    aveETA_ARID_errup[aveETA_ARID_errup <= 0.1] = 0.1
-    aveETA_ARID_errdown[aveETA_ARID_errdown <= 0.1] = 0.1
     duty_arid.close()  
 
 DUTY_ARID = np.log10(DUTY_ARID)
+DUTY_ARID_errup = np.log10(DUTY_ARID_errup)
+DUTY_ARID_errdown = np.log10(DUTY_ARID_errdown)
 
 criteria = np.log(0.01)
 
 
 def get_chi2(ym, ya, err_abv, err_blw):
-    abv = (ym[ym > ya] - ya[ym > ya])**2 / err_abv[ym > ya]**2
-    blw = (ym[ym < ya] - ya[ym < ya])**2 / err_blw[ym < ya]**2
-    abv[np.where((abv>50.))] = 50.
-    blw[np.where((blw>50.))] = 50.
+    abv = (ym[ym > ya] - ya[ym > ya])**2# / err_abv[ym > ya]**2
+    blw = (ym[ym < ya] - ya[ym < ya])**2# / err_blw[ym < ya]**2
+    abv[np.where((abv>80.))] = 80.
+    blw[np.where((blw>80.))] = 80.
     return np.sum(abv) + np.sum(blw)
 
 
@@ -123,39 +117,49 @@ def partial_chi2(combo):
         DUTY[Mcount] = DUTY[Mcount]/lnMstar
         Mcount += 1
 
+#     print('\n \t\t\t before Duty Cycle:', DUTY,'\n')
     DUTY = np.log10(DUTY*100)
     DUTY[DUTY==-np.inf] = 0
+#     print('\n \t\t\t after Duty Cycle:', DUTY,'\n')
+#     print('\n \t\t\t before Eta:', aveETA,'\n')
     aveETA = np.log10(aveETA)
     aveETA[np.isnan(aveETA)] = 0
+#     print('\n \t\t\t after Eta:', aveETA,'\n')
     
     chi2 = 0
     ym, ya = DUTY[dutyinds], DUTY_ARID[:,zcount][dutyinds]
     err_abv, err_blw = DUTY_ARID_errup[:,zcount][dutyinds], DUTY_ARID_errdown[:,zcount][dutyinds]
     chi2_dut = get_chi2(ym, ya, err_abv, err_blw)
     chi2 += chi2_dut
+#     print('Duty model v actual: ',ym,'\n', ya)
+#     print('Duty chi2: ',chi2_dut)
     
     ym, ya = aveETA[etainds], aveETA_ARID[:,zcount][etainds]
     err_abv, err_blw = aveETA_ARID_errup[:,zcount][etainds], aveETA_ARID_errdown[:,zcount][etainds]
     chi2_eta = get_chi2(ym, ya, err_abv, err_blw)
     chi2 += chi2_eta
+#     print('Eta model v actual: ',ym,'\n',ya)
+#     print('Eta chi2: ', chi2_eta)
     
+#     for valm, vala, err_a, err_b, m in zip(ym, ya, err_abv, err_blw, np.asarray(mass)[etainds]):
+#         indm_chi2_list.append(get_chi2(valm, vala, err_a, err_b))
         
         
     return chi2
 
 #set the M*crit and post-disk sig values to be constant
-reso = 15
+reso = 30
 b = 0.005
 SIG_lnMs = 0.7
 L = np.linspace(5,18,100)
-logMstar0 = 10.36 #10.58
-xsigpost = 1.64 #1.23
+logMstar0 = 10.3
+xsigpost = 2.3
 xsigpre = np.linspace(1.0,10.0,reso)
-slopes = np.linspace(0.01,1.5,reso)
+slopes = np.linspace(0.0,1.5,reso)
 norms = np.linspace(0.0,3.0,reso)
 combos = np.array(list(itertools.product(slopes, xsigpre, norms)))
 
-filename = "output/chi2_3pARIDfit_"+str(reso)+"_newparams_wfloor_Shen-set.h5py"
+filename = "output/chi2_AIRD_r"+str(reso)+"_v1.1.0_w0_s0.h5py"
 
 
 

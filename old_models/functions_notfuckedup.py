@@ -1,3 +1,5 @@
+###made because compatiable with much of the old paper plotting code I have
+
 from numpy.polynomial import chebyshev as C
 import numpy as np
 import scipy as sp

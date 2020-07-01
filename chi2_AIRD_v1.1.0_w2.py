@@ -1,3 +1,5 @@
+###### this script uses uncertainty normalization and a weight floor
+
 from functions_newparams import *
 import h5py
 import itertools
@@ -39,10 +41,12 @@ for m, i in zip(mass, range(len(mass))):
     DUTY_ARID[i,0:len(ind)] = np.array(per)[ind]
     dutyup = DUTY_ARID[i,0:len(ind)] + yerr[1,ind]
     logerrup = np.log10(dutyup) - np.log10(DUTY_ARID[i,0:len(ind)])
+    logerrup[logerrup <= 0.1] = 0.1
     dutydown = DUTY_ARID[i,0:len(ind)] - yerr[0,ind]
     logerrdown = np.log10(DUTY_ARID[i,0:len(ind)]) - np.log10(dutydown)
-    DUTY_ARID_errup[i,0:len(ind)] = logerrup
-    DUTY_ARID_errdown[i,0:len(ind)] = logerrdown
+    logerrdown[logerrdown <= 0.1] = 0.1
+    DUTY_ARID_errup[i,0:len(ind)] = logerrup * np.sqrt(1.49/1.26)
+    DUTY_ARID_errdown[i,0:len(ind)] = logerrdown * np.sqrt(1.49/1.26)
 ###
 ### collect ave eta for compare
 colors = ['teal', 'gold', 'brown', 'r']
@@ -62,6 +66,8 @@ for i, c in zip(range(len(mass)-2), colors):
     aveETA_ARID[i,0:len(x)] = np.array(y)
     aveETA_ARID_errup[i,0:len(x)] = np.array(yerrup)
     aveETA_ARID_errdown[i,0:len(x)] = np.array(yerrdown)
+    aveETA_ARID_errup[aveETA_ARID_errup <= 0.1] = 0.1
+    aveETA_ARID_errdown[aveETA_ARID_errdown <= 0.1] = 0.1
     duty_arid.close()  
 
 DUTY_ARID = np.log10(DUTY_ARID)
@@ -144,14 +150,14 @@ reso = 15
 b = 0.005
 SIG_lnMs = 0.7
 L = np.linspace(5,18,100)
-logMstar0 = 10.3
-xsigpost = 2.3
+logMstar0 = 10.36 #10.58
+xsigpost = 1.64 #1.23
 xsigpre = np.linspace(1.0,10.0,reso)
-slopes = np.linspace(0.0,1.5,reso)
+slopes = np.linspace(0.01,1.5,reso)
 norms = np.linspace(0.0,3.0,reso)
 combos = np.array(list(itertools.product(slopes, xsigpre, norms)))
 
-filename = "output/chi2_3pARIDfit_"+str(reso)+"_newparams-fixweights.h5py"
+filename = "output/chi2_AIRD_r"+str(reso)+"_v1.1.0_w2_s1.h5py"
 
 
 

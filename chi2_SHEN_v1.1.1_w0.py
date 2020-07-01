@@ -23,7 +23,7 @@ xsigpost = 1.23 #2.3
 combos = np.array(list(itertools.product(slopes, xsigpre, norms)))
 
 
-filename = "output/chi2_3pShenfit_"+str(reso)+"_newparams.h5py"
+filename = "output/chi2_SHEN_r"+str(reso)+"_v1.1.1_w0_s1.h5py"
 
 
 

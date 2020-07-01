@@ -1,4 +1,4 @@
-from functions_notfuckedup import *
+from functions_newparams import *
 import h5py
 import itertools
 import numpy as np
@@ -10,18 +10,21 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-zlist = [0.0, 1.0, 2.0, 3.0, 4.0]
-reso = 40
+# zlist = [0.0, 1.0, 2.0, 3.0, 4.0]
+zlist = [1.0]
+reso = 15
 qlf_bins = 0.005
-sig_lnMstar = 0.7
-# slope_low, norm_from_local = 0.2, 4.0
+sig_lnMstar = 0.2
+slopes = np.linspace(0.01,1.5,reso)
+norms = np.linspace(0.0,3.0,reso)
 lums = np.linspace(8.95, 14.95, 150)
 logMstar0 = np.linspace(5,12.5,reso)
 xsigpre = np.linspace(1.0,10.0,reso)
 xsigpost = np.linspace(1.0,10.0,reso)
-combos = np.array(list(itertools.product(logMstar0, xsigpre, xsigpost)))
+combos = np.array(list(itertools.product(logMstar0, xsigpre, xsigpost, slopes, norms)))
 
-filename = "output/chi2_3pShenfit_"+str(reso)+"_nw_mk3.h5py"
+
+filename = "output/chi2_SHEN_r"+str(reso)+"_v1.2.3_w0.h5py"
 
 
 
@@ -31,13 +34,13 @@ f.attrs.modify('resolution', reso)
 dset = f.create_dataset('logMstar0', data = logMstar0)
 dset = f.create_dataset('siglnX2', data = xsigpost)
 dset = f.create_dataset('siglnX1', data = xsigpre)
-dset = f.create_dataset('slope_low', data = slope_low)
-dset = f.create_dataset('norm_from_local', data = norm_from_local)
+dset = f.create_dataset('slope_low', data = slopes)
+dset = f.create_dataset('norm_from_local', data = norms)
 
 f.close()
 
 def chi2(a, z, qlf):
-    qlf.get_Mbh(a[0], approx_local=True)
+    qlf.get_Mbh(a[0], a[3], a[4], approx_local=True)
     qlf.get_dNdlnL(lums, [a[1], a[2]])
 
     ym = np.log10(qlf.dNdlnL * np.log(10))
@@ -49,13 +52,14 @@ for z in zlist:
     
     print('Begin with redshift '+str(z))
     qlf = QLF(z, qlf_bins)
+    qlf.SSFRs[:] = qlf.SSFRs[0]
     qlf.get_dNdlnMstar(sig_lnMstar)
     
     ya, err_ave, err_abv, err_blw = Shen_fit_uncer(z, lums)
     
     print('Begin itterations...')
     start = timeit.default_timer()
-    chi23d = np.apply_along_axis(chi2, 1, combos, z, qlf).reshape(reso, reso, reso)
+    chi23d = np.apply_along_axis(chi2, 1, combos, z, qlf).reshape(reso, reso, reso, reso, reso)
     stop = timeit.default_timer()
 
     print('Time to itterate: ', stop - start) 

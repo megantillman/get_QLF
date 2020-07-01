@@ -10,9 +10,14 @@ import numexpr as ne
 
 
 files = [f.split('a')[1].split('.d')[0] for f in glob.glob('ssfrs/ssfr_a*.dat')]
-a_list = np.array([float(a) for a in files])
-mass_list = np.array([np.loadtxt("ssfrs/ssfr_a"+f+".dat")[:,0] for f in files])
+ssfr_a_list = np.array([float(a) for a in files])
+ssfr_mass_list = np.array([np.loadtxt("ssfrs/ssfr_a"+f+".dat")[:,0] for f in files])
 ssfr_list = [np.loadtxt("ssfrs/ssfr_a"+f+".dat")[:,1] for f in files]
+
+files = [f.split('a')[1].split('.d')[0] for f in glob.glob('smfs/smf_a*.dat')]
+smf_a_list = np.array([float(a) for a in files])
+smf_mass_list = np.array([np.loadtxt("smfs/smf_a"+f+".dat")[:,0] for f in files])
+smf_list = [np.loadtxt("smfs/smf_a"+f+".dat")[:,1] for f in files]
 
 param_file = np.loadtxt("smhm_params.txt")
 names = "EFF_0 EFF_0_A EFF_0_A2 EFF_0_Z M_1 M_1_A M_1_A2 M_1_Z ALPHA ALPHA_A ALPHA_A2 ALPHA_Z BETA BETA_A BETA_Z DELTA GAMMA GAMMA_A GAMMA_Z CHI2".split(" ");
@@ -103,128 +108,75 @@ class QLF():
         self.z = float(z)
         self.a = 1.0/(1.0+self.z)
         self.bins = bins
-        self.get_zparams()
-
-        self.HaloBins = np.linspace(3.0, 15.0, int((15.0 - 3.0) / self.bins))
-
-        self.fp = self.HaloBins
-        self.xp = self.get_Mstar(self.fp)
 
         self.StellBins = np.linspace(3.0, 12.5, int((12.5 - 3.0) / self.bins))
-
-
-        closest_a = np.argmin(np.abs(a_list - self.a))
-        self.ssfrs = np.array(ssfr_list[closest_a])
-        self.nonzero = (self.ssfrs != 0)
-        self.masses = np.array(mass_list[closest_a])
-        self.minm = np.min(self.masses[self.nonzero])
-        self.maxm = np.max(self.masses[self.nonzero])
         
-        self.SSFRs = np.interp(self.StellBins, self.masses[self.nonzero], self.ssfrs[self.nonzero])
+        #### extract ssfr
+        closest_a = np.argmin(np.abs(ssfr_a_list - self.a))
+        ssfrs = np.array(ssfr_list[closest_a])
+        nonzero = (ssfrs != 0)
+        masses = np.array(ssfr_mass_list[closest_a])
+        self.SSFRs = 10**np.interp(self.StellBins, masses[nonzero], np.log10(ssfrs[nonzero]))
+        
+        #### extrapolate out to high M*
+        slope = (np.log10(ssfrs[nonzero][-1]) - np.log10(ssfrs[nonzero][-2])) / (masses[nonzero][-1] - masses[nonzero][-2])
+        inter = np.log10(ssfrs[nonzero][-1]) - slope * masses[nonzero][-1]
+        gtzero = (self.StellBins >= masses[nonzero][-1])
+        self.SSFRs[gtzero] = 10**(self.StellBins[gtzero]*slope + inter)
+        
+        #### extrapolate out to low M*
+        slope = (np.log10(ssfrs[1]) - np.log10(ssfrs[0])) / (masses[1] - masses[0])
+        inter = np.log10(ssfrs[0]) - slope * masses[0]
+        ltavail = (self.StellBins < masses[0])
+        self.SSFRs[ltavail] = 10**(self.StellBins[ltavail]*slope + inter)
+        
+        
+        ### extract smf
+        closest_a = np.argmin(np.abs(smf_a_list - self.a))
+        smf = np.array(smf_list[closest_a])
+        nonzero = (smf != 0)
+        masses = np.array(smf_mass_list[closest_a])
+        self.dNdlogMstar = 10**np.interp(self.StellBins, masses[nonzero], np.log10(smf[nonzero]))
+        
+        #### extrapolate out to high M*
+        slope = (np.log10(smf[nonzero][-1]) - np.log10(smf[nonzero][-2])) / (masses[nonzero][-1] - masses[nonzero][-2])
+        inter = np.log10(smf[nonzero][-1]) - slope * masses[nonzero][-1]
+        self.dNdlogMstar[gtzero] = 10**(self.StellBins[gtzero]*slope + inter)
+        
+        #### extrapolate out to low M*
+        slope = (np.log10(smf[1]) - np.log10(smf[0])) / (masses[1] - masses[0])
+        inter = np.log10(smf[0]) - slope * masses[0]
+        self.dNdlogMstar[ltavail] = 10**(self.StellBins[ltavail]*slope + inter)
+        
+        self.dNdlnMstar = self.dNdlogMstar/np.log(10)
+        
 
 
-
-    def get_zparams(self):
-        a1 = self.a - 1.0
-        lna = np.log(self.a)
-        self.zparams = {}
-        self.zparams['m_1'] = params['M_1'] + a1*params['M_1_A'] - lna*params['M_1_A2'] + self.z*params['M_1_Z']
-        self.zparams['sm_0'] = self.zparams['m_1'] + params['EFF_0'] + a1*params['EFF_0_A'] - lna*params['EFF_0_A2'] + self.z*params['EFF_0_Z']
-        self.zparams['alpha'] = params['ALPHA'] + a1*params['ALPHA_A'] - lna*params['ALPHA_A2'] + self.z*params['ALPHA_Z']
-        self.zparams['beta'] = params['BETA'] + a1*params['BETA_A'] + self.z*params['BETA_Z']
-        if self.zparams['beta'] < 0.05:
-            self.zparams['beta'] = 0.05
-        self.zparams['delta'] = params['DELTA']
-        self.zparams['gamma'] = 10**(params['GAMMA'] + a1*params['GAMMA_A'] + self.z*params['GAMMA_Z'])
-
-
-
-
-    def get_slope(self, logMhalo): #returns dlogMstar/dlogMhalo slope is same in log10 and ln space
-
-        dm = logMhalo-self.zparams['m_1'];
-        term1 = (self.zparams['alpha']*10.**(self.zparams['beta']*dm)+self.zparams['beta']*10.**(self.zparams['alpha']*dm))/(10.**(self.zparams['beta']*dm) + 10.**(self.zparams['alpha']*dm))
-        term2 = -self.zparams['gamma']*dm*np.exp(-(dm/self.zparams['delta'])**2/2.)/self.zparams['delta']**2
-        slope = term1 + term2
-
-        return slope
-
-    def get_Mstar(self,logMhalo): 
-
-        dm = logMhalo-self.zparams['m_1']
-        dm2 = dm/self.zparams['delta']
-        logMstar = self.zparams['sm_0'] - np.log10(10**(-self.zparams['alpha']*dm) + 10**(-self.zparams['beta']*dm)) + self.zparams['gamma']*np.exp(-0.5*(dm2*dm2))
-
-        return logMstar
-
-
-    def get_Mhalo(self, logMstar):
-
-        logMhalo = np.interp(logMstar, self.xp, self.fp)
-
-        return logMhalo
-
-
-    def gauss_array(self, vals, std):
-
-        y = (1/np.sqrt(2.0*np.pi*std**2.0))*np.exp((-(vals[:-1]-vals[-1])**2.0)/(2.0*std**2))
-
-        return y
-
-
-    def convolve_smhm(self, sigma):
-
-        lnten = np.log(10)
-        logMh = self.get_Mhalo(self.StellBins)
-        plus_mins = (7.0 * sigma)
-        mins = (logMh * lnten - plus_mins)
-        maxs = (logMh * lnten + plus_mins)
-        mins[mins < 3 * lnten] = 3 * lnten
-        maxs[maxs > 18 * lnten] = 18 * lnten
-        bin_num = int(max(maxs - mins)/self.bins)
-        lnMh = create_ranges_numexpr(mins, maxs, bin_num)
-        dNdlnMhalo = mf.massFunction(np.e**lnMh, self.z, q_in='M', q_out='dndlnM', mdef='vir', model='despali16')
-        logMstar = np.apply_along_axis(self.get_Mstar, 1, lnMh/lnten)
-        vals = np.zeros((len(self.StellBins),bin_num+1))
-        vals[:,-1] = self.StellBins * lnten
-        vals[:,:-1] = logMstar * lnten
-        Mstar_prob = np.apply_along_axis(self.gauss_array, 1, vals, sigma)
-        dNdlnMstar = np.sum(Mstar_prob * dNdlnMhalo, axis = 1) * (lnMh[:,1] - lnMh[:,0])
-
-        return dNdlnMstar
-
-
-
-    def get_dNdlnMstar(self, sig_lnMstar):
-
-        if sig_lnMstar == 0.:
-            self.dNdlnMstar = mf.massFunction(10.**self.get_Mhalo(self.StellBins), self.z, q_in='M', q_out='dndlnM', mdef='vir', model='despali16') / self.get_slope(self.get_Mhalo(self.StellBins))
-        else:
-            self.dNdlnMstar = self.convolve_smhm(sig_lnMstar)
-
-
-    def get_Mbh(self, logMstar0, approx_local = False):
-        norm = [11, 8.2]
-
+    def get_Mbh(self, logMstar0, slope_low = 0.2, norm_from_local =4.0, approx_local = False, norm_local = 8.2):
+        norm = [11, norm_local]
+        
+        self.logMstar0 = logMstar0
         logMstar = self.StellBins
         logMbh = logMstar * 0
         slopes = logMstar * 0
 
         if approx_local == False:
-            post_params = [1.12, norm[1] - 1.12*norm[0]]
-            init = [7., 7.*post_params[0]+post_params[1]]
-            pre_params = [0.2, init[1] - init[0] * 0.2]
+            logMbh0 = logMstar0*1.12 - norm[0]*1.12 + norm[1] - norm_from_local
+            my_norm = [logMstar0, logMbh0]
+            post_params = [1.12, logMbh0 - 1.12*logMstar0]
+            pre_params = [slope_low, my_norm[1] - my_norm[0] * slope_low]
 
         else:
-            post_params = [1, -2.8]
-            init = [7., 7.*post_params[0]+post_params[1]]
-            pre_params = [0.2, init[1] - init[0] * 0.2]
+            logMbh0 = logMstar0 + norm[1] - norm[0] - norm_from_local
+            my_norm = [logMstar0, logMbh0]
+            post_params = [1, logMbh0 - logMstar0]
+            pre_params = [slope_low, my_norm[1] - my_norm[0] * slope_low]
 
         post = (logMstar > logMstar0)
         pre = (logMstar <= logMstar0)
         Ms = 10**logMstar
         Ms0 = 10**logMstar0
-        Mbh0 = 10**(logMstar0 * pre_params[0] + pre_params[1])
+        Mbh0 = 10**logMbh0
         beta = post_params[0]
         alpha = 10**norm[1] / 10**(norm[0]*beta)
 
@@ -235,16 +187,17 @@ class QLF():
         logMbh[pre] = logMstar[pre] * pre_params[0] + pre_params[1]
         slopes[pre] = pre_params[0]
 
+        
         self.slopes = slopes
         self.BHBins = logMbh
         self.pre = pre
         self.post = post
         self.mmax = post_params[0]
-
-        self.SBHARs = self.slopes * (self.SSFRs / 3.154e7)
-        self.MdotBH = self.SBHARs * (10**self.BHBins * 2e33)
-        self.Ledd = 1.3e38 * 10**self.BHBins
-        self.Mdotedd = self.Ledd / (.1 * (2.99e10)**2)
+        ## SSFR are in yr^-1
+        self.SBHARs = self.slopes * (self.SSFRs / 3.154e7) ## s^-1
+        self.MdotBH = self.SBHARs * (10**self.BHBins * 2e33) ## g/s
+        self.Ledd = 1.3e38 * 10**self.BHBins ## erg/s
+        self.Mdotedd = self.Ledd / (.1 * (2.99e10)**2) ## g/s
 
 
     def get_Mdotbh(self, vals, files = files):
@@ -268,20 +221,18 @@ class QLF():
         return y
 
 
-    def get_dNdlnL(self, L, lnxsigs): 
-
+    def get_dNdlnL(self, L, lnxsigs): #input luminosity in log10 space in units of solar mass
+        
         lnxsig_list = self.StellBins * 0
         lnxsig_list[self.pre] = lnxsigs[0]
         lnxsig_list[self.post] = lnxsigs[1]
-        tenper = int( 0.4 * len(self.slopes[self.post][self.slopes[self.post] >= 1.05 * self.mmax] ) )
-        tranpoint = np.argmin(self.pre)
-
-        try:
-            lintrans = np.linspace(lnxsigs[0], lnxsigs[1], tenper*2, endpoint = False)
-            lnxsig_list[tranpoint - tenper : tranpoint + tenper] = lintrans
-        except:
-            lintrans = np.linspace(lnxsigs[0], lnxsigs[1], len(lnxsig_list[0 : tranpoint + tenper]), endpoint = False)
-            lnxsig_list[0 : tranpoint + tenper] = lintrans
+        ### start transition at the M*crit value
+        critpoint = np.argmin(np.abs(self.StellBins - self.logMstar0))
+        ### end transistion 0.5 dex after that value
+        endtran = np.argmin(np.abs(self.StellBins - (self.logMstar0 + 0.5)))
+        lintrans = np.linspace(lnxsigs[0], lnxsigs[1], len(lnxsig_list[critpoint-1:endtran]))
+        lnxsig_list[critpoint-1:endtran] = lintrans
+        
 
 
         vals = np.zeros((len(self.StellBins), 2))
@@ -291,12 +242,10 @@ class QLF():
 
         self.lnMdotbh_list = (np.asarray(L) + np.log10(3.9e33)) * np.log(10) - np.log(0.1*2.99e10**2)
 
-        Rl = 0.8
-        Rh = 0.2
-        Lc = 10**43.7
-        Lx = 0.037*10**(np.asarray(L) + np.log10(3.9e33))
-        self.FOb = Rl * np.e**(-Lx/Lc) + Rh * (1 - np.e**(-Lx/Lc))
-
-        self.intvals = np.apply_along_axis(self.gauss_Mdot, 1, self.lnMdotbh_list.reshape(len(self.lnMdotbh_list),1)) * self.dNdlnMstar * (self.StellBins[1] - self.StellBins[0])
-
+        ### I convert the stellar bins size to log base e for the calculation with the log base e stellar mass function and log base e sigmas
+        self.intvals = np.apply_along_axis(self.gauss_Mdot, 1, self.lnMdotbh_list.reshape(len(self.lnMdotbh_list),1)) * self.dNdlnMstar * (self.StellBins[1] - self.StellBins[0]) * np.log(10)
+     
+        #### I produce two QLFs one in log base e and the other in log base 10
         self.dNdlnL = np.sum(self.intvals, axis = 1)
+        self.dNdlogL = self.dNdlnL * np.log(10)
+
