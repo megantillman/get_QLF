@@ -36,6 +36,47 @@ paper_plots.ipynb: notebook where I generate plots I intend to use in the write-
 
 
 
+CHI2 OUTPUT NAMEING CONVENTION:
+(the chi2 python scripts follow a similar naming convention)
+
+chi2_(1)_r(2)_v(3).(4).(5)_w(6)_s(7).h5py
+
+(1): "SHEN" or "AIRD" dependings on what curves I am fitting.
+
+(2): Resolution of the fit. Is an interger.
+
+(3): Indicator on version of the QLF code.
+        0 - pre new pre-disk parameter introductions
+        1 - pre SMF start
+        2 - post SMF start
+        
+(4): Indicator of which parameters are freed in the fit.
+        0 - original (pre- and post-disk sigma and critical stellar mass)
+        1 - new (pre-disk sigma, slope of pre-disk, norm of pre-disk)
+        2 - all (pre- and post-disk sigma, critical stellar mass, slope of pre-disk, norm of pre-disk)
+        3 - linear params (just post-disk sigma)
+        4 - linear params+ (post-disk sigma and norm of post-disk (local scaling))
+        
+(5): Indicator for other important information.
+        0 - none
+        1 - if SHEN fit the approximate range luminosities where the observations were available
+            if AIRD save for all redshift AND mass values individually
+        2 - if SHEN fit a larger range of luminosities where observations were available
+        3 - using the constant sSFR value
+        
+(6): Indicator on weights used in a fit.
+        0 - none
+        1 - weights used exactly as given
+        2 - some limitation on wegiths (normalize the uncertainties or enact a minimum-value/floor for the weights)
+        3 - weights used but probably incorrectly
+        
+(7): Indicator on how the set parameters were chosen. (wont appear if no free parameters are set)
+        0 - set to be what is thought to be physically reasonable and/or a good fit by eye
+        1 - set to be the best fit values of previous/other fits
+        2 - set parameters have no effect on the fit (true for some linear fits)
+
+
+
 ##this is old documentation I made... not throwing away though
     
     Required packages: numpy, scipy, glob, numexpr, colossus
