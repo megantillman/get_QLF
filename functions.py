@@ -72,16 +72,15 @@ def Shen_fit_uncer(z, lums): ###best fit data from Shen+2020
         g1 = C.chebval(1 + z, [a0, a1, a2])
         g2 = 2*b0/(zfrac**b1 + zfrac **b2)
         logLs = 2*c0/(zfrac**c1 + zfrac**c2)
-        logPhis = C.chebval(z, [d0]) + C.chebval(1 + z, [0, d1])
+        logPhis = C.chebval(1 + z, [d0, d1])
         Lfrac = 10**L / 10**logLs
         Phibol = 10**logPhis/(Lfrac**g1 + Lfrac**g2)
-
         return np.log10(Phibol)
 
-    params = {'a0':[0.85858, 0.03092, 0.02876], 'a1':[-0.26236, 0.02003, 0.01753], 'a2':[0.02105, 0.00136, 0.00113],\
-        'b0':[2.54992, 0.01915, 0.02949], 'b1':[-1.04735, 0.01815, 0.02999], 'b2':[1.13277, 0.01988, 0.03891],\
-        'c0':[13.01297, 0.00943, 0.01354], 'c1':[-0.57587, 0.00205, 0.00261], 'c2':[0.45361, 0.00290, 0.00434],\
-        'd0':[-3.53138, 0.02694, 0.02690], 'd1':[-0.39961, 0.00871, 0.00896]}
+    params = {'a0':[0.8569, 0.0247, 0.0253], 'a1':[-0.2614, 0.0162, 0.0164], 'a2':[0.0200,0.0011,0.0011],\
+        'b0':[2.5375, 0.0177, 0.0187], 'b1':[-1.0425,0.0164, 0.0182], 'b2':[1.1201, 0.0199, 0.0207],\
+        'c0':[13.0088, 0.0090, 0.0091], 'c1':[-0.5759, 0.0018, 0.0020], 'c2':[0.4554, 0.0028, 0.0027],\
+        'd0':[-3.5426, 0.0235, 0.0209], 'd1':[-0.3936, 0.0070, 0.0073]}
     param_list = np.array([params[i] for i in params])
 
     NUM = int(1e4)
@@ -96,8 +95,12 @@ def Shen_fit_uncer(z, lums): ###best fit data from Shen+2020
     std_ave = np.std(ys, axis=1)
     std_blw = ya-percs[1,:]
     std_abv = percs[3,:]-ya
+    
+    zr = 2.0
+    zfrac = (1 + z)/(1 + zr)
+    logLs = 2*params['c0'][0]/(zfrac**params['c1'][0] + zfrac**params['c2'][0])
 
-    return ya, std_ave, std_abv, std_blw
+    return ya, std_ave, std_abv, std_blw, logLs
 
 
 
