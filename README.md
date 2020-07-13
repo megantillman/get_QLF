@@ -56,6 +56,7 @@ chi2_(1)_r(2)_v(3).(4).(5)_w(6)_s(7).h5py
         2 - all (pre- and post-disk sigma, critical stellar mass, slope of pre-disk, norm of pre-disk)
         3 - linear params (just post-disk sigma)
         4 - linear params+ (post-disk sigma and norm of post-disk (local scaling))
+        5 - all+ (all but also post-disk normalization)
         
 (5): Indicator for other important information.
         0 - none
@@ -63,6 +64,7 @@ chi2_(1)_r(2)_v(3).(4).(5)_w(6)_s(7).h5py
             if AIRD save for all redshift AND mass values individually
         2 - if SHEN fit a larger range of luminosities where observations were available
         3 - using the constant sSFR value
+        4 - if SHEN fit the approximate range luminosities where the observations were available and fit equal number of points before and after knee
         
 (6): Indicator on weights used in a fit.
         0 - none
@@ -74,6 +76,7 @@ chi2_(1)_r(2)_v(3).(4).(5)_w(6)_s(7).h5py
         0 - set to be what is thought to be physically reasonable and/or a good fit by eye
         1 - set to be the best fit values of previous/other fits
         2 - set parameters have no effect on the fit (true for some linear fits)
+        3 - weighing the luminosities before and after the break in the power law equally in a QLF fit
 
 
 
