@@ -9,7 +9,7 @@ import sys
 
 z = float(sys.argv[1])
 
-filename = "output/chi2_SHEN_r"+str(reso)+"_6param_eL_adjreso.h5py"
+filename = "output/chi2_SHEN_6param_eL_adjreso.h5py"
 
 r1, r2, r3, r4, r5, r6 = 20, 15, 15, 20, 15, 15
 
@@ -85,7 +85,6 @@ print(f'Combination array produced after time {TimeComplete(stop-start)}.\n')
 #### Write various data to the file.
 f = h5py.File(filename, "w")
 f.attrs.modify('resolutions', np.array([r1, r2, r3, r4, r5, r6]))
-f.attrs.modify('indices', np.array(['logMstar0', 'siglnX1', 'siglnX2', 'slope_low', 'norm_from_local', 'norm_of_local']))
 f.attrs.modify('redshift', np.array([z]))
 f.attrs.modify('qlf_bin_size', np.array([qlf_bins]))
 dset = f.create_dataset('luminosities', data = lums)

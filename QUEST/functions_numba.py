@@ -1,6 +1,7 @@
 from numpy.polynomial import chebyshev as C
 import numpy as np
 import scipy as sp
+import scipy.stats
 import glob
 from numba import jit
 
