@@ -155,7 +155,7 @@ class QLF():
         
 
 
-    def get_Mbh(self, logMstar0, slope_low = 0.2, norm_from_local =4.0, approx_local = False, norm_local = 8.2):
+    def get_Mbh(self, logMstar0, slope_low = 0.2, norm_from_local =4.0, approx_local = True, norm_local = 8.2):
         norm = [11, norm_local]
         
         self.logMstar0 = logMstar0
