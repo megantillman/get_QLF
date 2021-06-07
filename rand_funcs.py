@@ -45,6 +45,8 @@ def best_fit_params_VARIED(redshifts, filename, null = False, bulge = False):
         chi2_grid = f['chi2_grid'][:].T
         f.close()
 
+        print('\tPost-disk norm values explore:', norm_of_local)
+        
         chi2_grid[null] = 1e10
 
         minval = np.amin(chi2_grid)
@@ -58,7 +60,7 @@ def best_fit_params_VARIED(redshifts, filename, null = False, bulge = False):
         bestcrit = transition[minind[5][0]]
 
         qlf_params = {'Transition point':bestcrit, 'Pre-disk normalization':bestnorm, 'Pre-disk slope':bestslope, 'Pre-disk sigma':bestpre,\
-                      'Post-disk sigma':bestpost, 'Post-disk normalization':bestlocal}
+                      'Post-disk sigma':bestpost, 'Post-disk normalization':bestlocal, 'Chi2 value':minval}
         
 #         print('Best fit parameter values for z ='+str(z)+':')
 #         pprint(qlf_params)
@@ -110,7 +112,7 @@ def best_fit_params_FIXED(redshifts, filename, null = False, bulge = False):
     bestcrit = transition[minind[5][0]]
 
     qlf_params = {'Transition point':bestcrit, 'Pre-disk normalization':bestnorm, 'Pre-disk slope':bestslope, 'Pre-disk sigma':bestpre,\
-                  'Post-disk sigma':bestpost, 'Post-disk normalization':bestlocal}
+                  'Post-disk sigma':bestpost, 'Post-disk normalization':bestlocal, 'Chi2 value':minval_tot}
     
 #     print('Best fit parameter values for stacked z:')
 #     pprint(qlf_params)

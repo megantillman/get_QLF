@@ -155,7 +155,7 @@ class QLF():
         
 
 
-    def get_Mbh(self, logMstar0, slope_low = 0.2, norm_from_local =4.0, approx_local = True, norm_local = 8.2):
+    def get_Mbh(self, logMstar0, slope_low = 0.2, norm_from_local =4.0, approx_local = True, norm_local = 8.2, local_slope = 1.12):
         norm = [11, norm_local]
         
         self.logMstar0 = logMstar0
@@ -164,9 +164,9 @@ class QLF():
         slopes = logMstar * 0
 
         if approx_local == False:
-            logMbh0 = logMstar0*1.12 - norm[0]*1.12 + norm[1] - norm_from_local
+            logMbh0 = logMstar0*local_slope - norm[0]*local_slope + norm[1] - norm_from_local
             my_norm = [logMstar0, logMbh0]
-            post_params = [1.12, logMbh0 - 1.12*logMstar0]
+            post_params = [local_slope, logMbh0 - local_slope*logMstar0]
             pre_params = [slope_low, my_norm[1] - my_norm[0] * slope_low]
 
         else:
