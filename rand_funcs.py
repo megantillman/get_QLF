@@ -21,6 +21,22 @@ def get_null(FILE):
     
     return null
 
+def get_null_a1(FILE):
+    f = h5py.File(FILE+'_z1.0.h5py', "r") 
+    siglnX2 = f['siglnX2'][:]
+    siglnX1 = f['siglnX1'][:]
+    alpha = f['slope_low'][:]
+    chi2_grid = f['chi2_grid'][:].T
+    f.close()
+
+    for index, value in np.ndenumerate(chi2_grid):
+        if siglnX2[index[3]] > siglnX1[index[4]] or alpha[index[2]] != 1.0:
+            chi2_grid[index] = 1e10
+
+    null = np.where(chi2_grid == 1e10)
+    
+    return null
+
 def best_fit_params_VARIED(redshifts, filename, null = False, bulge = False):
     
     print('Recording the best fit values for the varied fits "'+filename+'".')
