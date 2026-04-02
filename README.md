@@ -5,6 +5,9 @@ This pipeline computes the bolometric quasar luminsotiy function (QLF) from an e
 
 This module computes the QLF based on the given parameter inputs by the user. Also included is a functionality to fit to the observed QLF using an MCMC method. Interested parties can contact me for help implementing the pipeline: mtt74[at]rutgers.edu.
 
+All of the files and their uses including brief description of the key functions are provided below.
+
+## File descriptions.
 
 DATA FILES:
 
