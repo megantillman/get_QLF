@@ -3,7 +3,7 @@ Pipeline written for publication: https://arxiv.org/abs/2109.14647.
 
 This pipeline computes the bolometric quasar luminsotiy function (QLF) from an empirically derived stellar to halo mass relation and an assumed supermassive black hole (SMBH) to stellar mass relation. The latter relation is designed with three distinct regimes, slow early growth of the SMBH in low stellar mass galaxies, rapid growth in an intermediate mass range, then finally a fall onto a scaling relation motivated by local observations.
 
-This module computes the QLF based on the given parameter inputs by the user. Also included is a functionality to fit to the observed QLF using an MCMC method. Interested parties should contact me for help implementing the pipeline: mtt74[at]rutgers.edu.
+This module computes the QLF based on the given parameter inputs by the user. Also included is a functionality to fit to the observed QLF using an MCMC method. Interested parties can contact me for help implementing the pipeline: mtt74[at]rutgers.edu.
 
 
 DATA FILES:
