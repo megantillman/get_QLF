@@ -9,14 +9,14 @@ All of the files and their uses including brief description of the key functions
 
 ## File descriptions.
 
-DATA FILES:
+### DATA FILES:
 
 obs_collect.txt: collection of observational data points collected in Hopkins et al. 2006.
 
 smhm_params.txt: originally smhm_true_med_params.txt holds information to be used in converting from halo mass to stellar and vice versa.
 
 
-FOLDERS:
+### FOLDERS:
 
 ssfrs: folder containing all the ssfr files needed for calculations in constructing the QLF.
 
@@ -27,7 +27,7 @@ QUEST: contains code I run on QUEST and some data and plots generated through th
 plots: contains both general plots I generate and plots generated for the purpose of being in the write-up.
 
 
-PYTHON SCRIPTS/NOTEBOOKS:
+### PYTHON SCRIPTS/NOTEBOOKS:
 
 functions.py: python script generating the current model of our QLF.
 
@@ -43,7 +43,7 @@ paper_plots.ipynb: notebook where I generate plots I intend to use in the write-
 
 
 
-CHI2 OUTPUT NAMEING CONVENTION:
+### CHI2 OUTPUT NAMEING CONVENTION:
 (the chi2 python scripts follow a similar naming convention)
 
 chi2_(1)_r(2)_v(3).(4).(5)_w(6)_s(7).h5py
@@ -87,7 +87,7 @@ chi2_(1)_r(2)_v(3).(4).(5)_w(6)_s(7).h5py
 
 
 
-##this is old documentation I made... not throwing away though
+### Description of functions.
     
     Required packages: numpy, scipy, glob, numexpr, colossus
         -these are imported with the user imports functions_pre-uni-model.py
